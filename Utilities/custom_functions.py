@@ -143,10 +143,11 @@ def from_networkx(
 
     return data
 
-def one_hot_encoding_topologies(value: ArteryNodeTopology) -> torch.Tensor:
-    assert isinstance(value, ArteryNodeTopology), f"Expected value to be of type ArteryNodeTopology, got {type(value)}"
-    topologies_number= len(list(value.__class__))
-    topology_id=value.value
-    topology_one_hot=torch.zeros(topologies_number)
-    topology_one_hot[topology_id-1]=1
+
+def one_hot_encoding_topologies(value: str) -> torch.Tensor:
+    assert any(value.upper() == topology.name for topology in ArteryNodeTopology), f"Expected value to be part of ArteryNodeTopology, got {value}"
+    topology_number = len(ArteryNodeTopology)
+    topology_mask=[value.upper() == topology.name for topology in ArteryNodeTopology]
+    topology_one_hot = torch.zeros(topology_number)
+    topology_one_hot[topology_mask] = 1
     return topology_one_hot
