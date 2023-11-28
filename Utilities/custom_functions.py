@@ -16,7 +16,7 @@ from torch_geometric.data import Data
 
 
 
-def get_subgraph_from_nbunch(g: SimpleCenterlineGraph, node_list: list) -> nx.classes.graph.Graph:
+def get_subgraph_from_nbunch(g: SimpleCenterlineGraph, node_list: list) -> SimpleCenterlineGraph:
     
     """Custum function to generate a graph of class SimpleCenterlineGraph that is the subgraph deriving from a given list of nodes"""
     SG=g.__class__(**g.graph) #setting the graph-level attributes copied from original graph
@@ -32,7 +32,7 @@ def from_networkx(
     G: Any,
     group_node_attrs: Optional[Union[List[str], all]] = None,
     group_edge_attrs: Optional[Union[List[str], all]] = None,
-) -> "torch_geometric.data.Data":
+) -> Data:
     r"""Converts a :obj:`networkx.Graph` or :obj:`networkx.DiGraph` to a
     :class:`torch_geometric.data.Data` instance.
 
@@ -47,7 +47,8 @@ def from_networkx(
     .. note::
 
         All :attr:`group_node_attrs` and :attr:`group_edge_attrs` values must
-        be numeric.
+        be numeric. 
+        for 'topology' attribute, a one hot encoding is performed' since the values are not ordinal
 
     Examples:
         >>> edge_index = torch.tensor([
@@ -142,9 +143,10 @@ def from_networkx(
 
     return data
 
-def one_hot_encoding_topologies(value):
-    topologies_number= len(list(ArteryNodeTopology))
-    topology_id=value.item()
+def one_hot_encoding_topologies(value: ArteryNodeTopology) -> torch.Tensor:
+    assert isinstance(value, ArteryNodeTopology), f"Expected value to be of type ArteryNodeTopology, got {type(value)}"
+    topologies_number= len(list(value.__class__))
+    topology_id=value.value
     topology_one_hot=torch.zeros(topologies_number)
-    topology_one_hot[topology_id]=1
+    topology_one_hot[topology_id-1]=1
     return topology_one_hot
