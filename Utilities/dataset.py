@@ -46,7 +46,13 @@ class ArteryGraphDataset(Dataset): #it is not an InMemoryDataset because it is n
     @property
     def processed_file_names(self):
         "if this file is present in the processed folder, the dataset is not processed again"
-        return ['pre_filter.pt'] #pre_filter checkpoint from pytorch is always present when the dataset is processed and saved
+        try:
+            with open(os.path.join(self.root, 'ref_data_list.txt'), 'r') as file:
+                # Read the lines from the file and remove newline characters
+                graphs_list = [line.strip() for line in file]
+                return  graphs_list
+        except: 
+            return 'no_item' #pre_filter checkpoint from pytorch is always present when the dataset is processed and saved
         #even when there is no actual graph in the dataset, this only indicates the graph has been once processes and 
         #the 'processed' folder is not empty and present in the root folder along with the 'raw' folder
 
@@ -87,7 +93,6 @@ class ArteryGraphDataset(Dataset): #it is not an InMemoryDataset because it is n
                 warnings.warn("The graph-level label is already assigned to the 'y' attribute of the Data object {}.", pyGeo_Data.y)
             else:
                 pyGeo_Data.y = torch.tensor([category_id], dtype=torch.long) #pyGeo_Data.y: Graph-level label with shape [1] and type torch.long
-
             # Add the graph to the list
             #data_list.append(pyGeo_Data)
             torch.save(pyGeo_Data, os.path.join(self.processed_dir, f'data_{idx}.pt'))

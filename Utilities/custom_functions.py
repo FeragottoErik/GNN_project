@@ -8,13 +8,24 @@ import scipy.sparse
 import torch
 from torch import Tensor
 from torch.utils.dlpack import from_dlpack, to_dlpack
-
+import os
 import torch_geometric
 from torch_geometric.utils.num_nodes import maybe_num_nodes
 from hcatnetwork.node import ArteryNodeTopology
 from torch_geometric.data import Data
 
-
+def get_processed_graphs_names_and_write_reference_txt(folder_path):
+    """This function enables to read the content of the folder processed of root folder of dataset
+    and write the .txt file that hosts the list of the names of the graphs that are needed
+    to already ecist within processed folder in order to skip process method during dataset instantiation"""
+    root='/home/erikfer/GNN_project/DATA/SPLITTED_ARTERIES_DATA/'
+    items = os.listdir(folder_path)
+    items = [item for item in items if item not in ['pre_filter.pt', 'pre_transform.pt']]
+    with open(os.path.join(root, 'ref_data_list.txt'), 'w') as file:
+        # Write each string in the list to the file
+        for item in items:
+            file.write("%s\n" % item)
+    return
 
 def get_subgraph_from_nbunch(g: SimpleCenterlineGraph, node_list: list) -> SimpleCenterlineGraph:
     

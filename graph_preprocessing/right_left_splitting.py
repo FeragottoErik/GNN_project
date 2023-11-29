@@ -25,12 +25,12 @@ graph_annotation = {
     ],
     "categories": [
         {
-            "id": 1,
+            "id": 0,
             "name": "left",
             "suercategory": "coronary_artery"
         },
         {
-            "id": 2,
+            "id": 1,
             "name": "right",
              "suercategory": "coronary_artery"
         },
@@ -108,21 +108,21 @@ for i, sample in enumerate(DATASET_CAT08_GRAPHS): # "Normal", or "Diseased" for 
         hcatnetwork.draw.draw_simple_centerlines_graph_2d(left_artery_graph, backend="networkx")
         hcatnetwork.draw.draw_simple_centerlines_graph_2d(right_artery_graph, backend="networkx")
 
-    hcatnetwork.io.save_graph(left_artery_graph, os.path.join(DATA_PATH, "left_artery", left_artery_graph.graph["image_id"].split(' ')[0]+"_left.gml"))
-    hcatnetwork.io.save_graph(right_artery_graph, os.path.join(DATA_PATH, "right_artery", right_artery_graph.graph["image_id"].split(' ')[0]+"_right.gml"))
+    hcatnetwork.io.save_graph(left_artery_graph, os.path.join(DATA_PATH, "raw/left_artery", left_artery_graph.graph["image_id"].split(' ')[0]+"_left.gml"))
+    hcatnetwork.io.save_graph(right_artery_graph, os.path.join(DATA_PATH, "raw/right_artery", right_artery_graph.graph["image_id"].split(' ')[0]+"_right.gml"))
 
     additional_graphs = [
         {
             "id": start_id+2*i, 
-            "file_name": os.path.join("left_artery", g.graph["image_id"].split(' ')[0]+"_left.gml"),
+            "file_name": os.path.join("raw/left_artery", g.graph["image_id"].split(' ')[0]+"_left.gml"),
             "ostium_id": left_ostium,
-            "category_id": 1
+            "category_id": 0
         },
         {
             "id": start_id+2*i+1,
-            "file_name": os.path.join("right_artery", g.graph["image_id"].split(' ')[0]+"_right.gml"),
+            "file_name": os.path.join("raw/right_artery", g.graph["image_id"].split(' ')[0]+"_right.gml"),
             "ostium_id": right_ostium,
-            "category_id": 2
+            "category_id": 1
         }
     ]
 
