@@ -131,7 +131,7 @@ class TestArteryGraphDataset(unittest.TestCase):
         self.assertEqual(self.dataset.raw_file_names, ['graphs_annotation.json'])
 
     def test_processed_file_names(self):
-        self.assertEqual(self.dataset.processed_file_names, ['pre_filter.pt'])
+        self.assertEqual(self.dataset.processed_file_names, ['no_item'])
 
     def test_len(self):
         pass
@@ -147,3 +147,4 @@ class TestArteryGraphDataset(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+    dataset=ArteryGraphDataset(root='/home/erikfer/GNN_project/DATA/SPLITTED_ARTERIES_DATA/', ann_file='graphs_annotation.json')

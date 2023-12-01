@@ -7,15 +7,42 @@ import networkx as nx
 
 import hcatnetwork
 from HearticDatasetManager.asoca.dataset import DATASET_ASOCA_GRAPHS_RESAMPLED_05MM_DICT
-from HearticDatasetManager.cat08.dataset import DATASET_CAT08_GRAPHS
+from HearticDatasetManager.cat08.dataset import DATASET_CAT08_GRAPHS_RESAMPLED_05MM
 
-from Utilities.custom_functions import get_subgraph_from_nbunch 
+from Utilities.custom_functions import get_subgraph_from_nbunch, make_ostia_origin_and_normalize
 
 ASOCA_PATH = '/home/erikfer/GNN_project/DATA/ASOCA/'
 CAT08_PATH = '/home/erikfer/GNN_project/DATA/CAT08/'
 DATA_PATH = '/home/erikfer/GNN_project/DATA/'
+
+"""DATA_PATH root includes a 'raw' named folder subdivided into left_artery and right_artery folders each one further
+including ASOCA and CAT08 folders. The final structure is:
+DATA_PATH
+    raw
+        left_artery
+            ASOCA
+                asoca_graph_1_left.gml
+                asoca_graph_2_left.gml
+                ...
+            CAT08
+                cat08_graph_1_left.gml
+                cat08_graph_2_left.gml
+                ...
+        right_artery
+            ASOCA
+                asoca_graph_1_right.gml
+                asoca_graph_2_right.gml
+                ...
+            CAT08
+                cat08_graph_1_right.gml
+                cat08_graph_2_right.gml
+                ...
+        graph_annotations.json
+"""
+
 VERBOSE = True
 PLOT = False
+MAKE_OSTIA_ORIGIN = True
 
 
 graph_annotation = {
@@ -38,7 +65,7 @@ graph_annotation = {
 }
 
 # Save to a JSON file
-output_file_path = os.path.join(DATA_PATH, 'graphs_annotation.json')
+output_file_path = os.path.join(DATA_PATH, 'raw/graphs_annotation.json')
 
 if os.path.exists(output_file_path):
     # Check if the file is not empty
@@ -59,7 +86,7 @@ else:
         json.dump(graph_annotation, json_file, indent=4)
 
 
-for i, sample in enumerate(DATASET_CAT08_GRAPHS): # "Normal", or "Diseased" for ASOCA, nothing for CAT08
+for i, sample in enumerate(DATASET_CAT08_GRAPHS_RESAMPLED_05MM): # "Normal", or "Diseased" for ASOCA, nothing for CAT08
     # Loading graph of ASOCA Dataset
     asoca_graph_file = os.path.join(
         CAT08_PATH,
@@ -100,6 +127,10 @@ for i, sample in enumerate(DATASET_CAT08_GRAPHS): # "Normal", or "Diseased" for 
 
     left_artery_graph = get_subgraph_from_nbunch(g, left_artery_node_list)
     right_artery_graph = get_subgraph_from_nbunch(g, right_artery_node_list)
+
+    if MAKE_OSTIA_ORIGIN:
+        left_artery_graph = make_ostia_origin_and_normalize(left_artery_graph, True)
+        right_artery_graph = make_ostia_origin_and_normalize(right_artery_graph, True)
 
     if VERBOSE:
         print("{} \n left artery: {} nodes \n right artery {} nodes, \n whole graph {} nodes".format(g.graph["image_id"].split(' ')[0], len(left_artery_node_list), len(right_artery_node_list), k+1))

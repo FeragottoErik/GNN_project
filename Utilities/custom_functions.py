@@ -3,6 +3,8 @@ from hcatnetwork.graph import SimpleCenterlineGraph
 import hcatnetwork
 from collections import defaultdict
 from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
+import json
+import numpy as np
 
 import scipy.sparse
 import torch
@@ -14,11 +16,10 @@ from torch_geometric.utils.num_nodes import maybe_num_nodes
 from hcatnetwork.node import ArteryNodeTopology
 from torch_geometric.data import Data
 
-def get_processed_graphs_names_and_write_reference_txt(folder_path):
+def get_processed_graphs_names_and_write_reference_txt(folder_path, root='/home/erikfer/GNN_project/DATA/SPLITTED_ARTERIES_DATA/'):
     """This function enables to read the content of the folder processed of root folder of dataset
     and write the .txt file that hosts the list of the names of the graphs that are needed
     to already ecist within processed folder in order to skip process method during dataset instantiation"""
-    root='/home/erikfer/GNN_project/DATA/SPLITTED_ARTERIES_DATA/'
     items = os.listdir(folder_path)
     items = [item for item in items if item not in ['pre_filter.pt', 'pre_transform.pt']]
     with open(os.path.join(root, 'ref_data_list.txt'), 'w') as file:
@@ -30,7 +31,7 @@ def get_processed_graphs_names_and_write_reference_txt(folder_path):
 def get_subgraph_from_nbunch(g: SimpleCenterlineGraph, node_list: list) -> SimpleCenterlineGraph:
     
     """Custum function to generate a graph of class SimpleCenterlineGraph that is the subgraph deriving from a given list of nodes"""
-    SG=g.__class__(**g.graph) #setting the graph-level attributes copied from original graph
+    SG=g.__class__(**g.graph) #setting the graph-level attributes copied from original graph 
     SG.graph["image_id"] += " - subgraph" #changeing the name at graph level
     SG.add_nodes_from((n, g.nodes[n]) for n in node_list)
     SG.add_edges_from((n, nbr, d)
@@ -162,3 +163,62 @@ def one_hot_encoding_topologies(value: str) -> torch.Tensor:
     topology_one_hot = torch.zeros(topology_number)
     topology_one_hot[topology_mask] = 1
     return topology_one_hot
+
+def visualize_graphs_from_folder(folder='/home/erikfer/GNN_project/DATA/SPLITTED_ARTERIES_DATA/', from_id=0) -> None:
+    """This function enables to visualize the graphs in networkx format contained in the folder
+    folder must be the path to the directory 'raw' of structure:
+    DATA_PATH
+    folder
+        raw
+            left_artery
+                ASOCA
+                    asoca_graph_1_left.gml
+                    asoca_graph_2_left.gml
+                    ...
+                CAT08
+                    cat08_graph_1_left.gml
+                    cat08_graph_2_left.gml
+                    ...
+            right_artery
+                ASOCA
+                    asoca_graph_1_right.gml
+                    asoca_graph_2_right.gml
+                    ...
+                CAT08
+                    cat08_graph_1_right.gml
+                    cat08_graph_2_right.gml
+                    ...
+            graph_annotations.json"""
+    
+    with open(os.path.join(folder, 'raw/graphs_annotation.json'), "r") as json_file:
+            data = json.load(json_file)
+
+    cat_id_to_name = {category["id"]: category["name"] for category in data["categories"]}
+    for i, graph_raw in enumerate(data["graphs"][from_id:]):
+        file_name=graph_raw["file_name"]
+        category_id= cat_id_to_name[graph_raw["category_id"]]
+        g = hcatnetwork.io.load_graph(file_path=os.path.join(folder, file_name),
+                                      output_type=hcatnetwork.graph.SimpleCenterlineGraph)
+        hcatnetwork.draw.draw_simple_centerlines_graph_2d(g, backend="networkx")
+
+def make_ostia_origin_and_normalize(side_graph, normalize=True):
+    """ This function enables to shift the origin of the graph to the ostium node and to normalize the coordinates of the nodes
+    obs: ostium_id is not the node index but the id of the ostium in the graph annotation file"""
+    for n in side_graph.nodes:
+        if n['topology'] == 'OSTIUM':
+            xyz_ostium = n.get_vertex_and_radius_numpy_array()[:3]
+            break
+    assert xyz_ostium is not None, "The ostium node is not found"
+    coords_and_radius = side_graph.get_vertex_and_radius_numpy_array()
+    shifted_coords_and_radius = coords_and_radius - xyz_ostium
+    
+    if normalize:
+        coords = shifted_coords_and_radius[:, :3]
+        radius = shifted_coords_and_radius[:, 3]
+        min_coords = np.min(coords, axis=0)
+        max_coords = np.max(coords, axis=0)
+        coords = (coords - min_coords) / (max_coords - min_coords)
+        shifted_coords_and_radius[:, :3] = coords
+    
+    side_graph.set_vertex_and_radius_numpy_array(shifted_coords_and_radius)
+    return side_graph

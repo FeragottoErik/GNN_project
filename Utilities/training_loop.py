@@ -6,6 +6,30 @@ from Utilities.dataset import ArteryGraphDataset
 import torch_geometric.nn as pyg_nn
 import torch.nn.functional as F
 from tensorboardX import SummaryWriter
+from torch_geometric.nn import GCNConv
+from torch_geometric.nn import GAE
+
+
+
+class GCNEncoder(torch.nn.Module):
+    def __init__(self, in_channels, out_channels):
+        super(GCNEncoder, self).__init__()
+        self.conv1 = GCNConv(in_channels, 2 * out_channels) # cached only for transductive learning
+        self.conv2 = GCNConv(2 * out_channels, out_channels) # cached only for transductive learning
+
+    def forward(self, x, edge_index):
+        x = self.conv1(x, edge_index).relu()
+        return self.conv2(x, edge_index)
+
+def compute_and_write_embeddings(writer, dataset):
+    num_features = dataset.num_features
+    out_channels = 2
+    model = GAE(GCNEncoder(num_features, out_channels))
+    #TODO: complete the autoencoder model
+    return
+
+
+
 
 # Define your GNN model
 class GNNStack(nn.Module):
@@ -97,11 +121,10 @@ if __name__ == "__main__":
     #TODO: use separated and controlled samples for testing and training, two different datasets, not splitted from the same one
     # train_dataset = dataset[:round(len(dataset) * 0.8)]
     # test_dataset = dataset[round(len(dataset) * 0.8):]
-    train_dataset = dataset[:90]
-    test_dataset = dataset[90:] #try to overfit on a small dataset
+    train_dataset = dataset[:40]
+    test_dataset = dataset[40:80] #try to overfit on a small dataset
 
     # Create data loaders
-    #TODO: problems with batch size, if >1 it doesn't work
     train_loader = DataLoader(train_dataset, batch_size=1, shuffle=True)
     test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False)
 
@@ -112,13 +135,13 @@ if __name__ == "__main__":
 
     # Initialize the model
     task='graph'
-    model = GNNStack(dataset.num_features, 32, dataset.num_classes, task=task)
-    print(dataset.num_features)
-    writer=SummaryWriter()
+    model = GNNStack(dataset.num_node_features, 32, dataset.num_classes, task=task)
+    print(dataset.num_node_features)
 
     # Define the loss function and optimizer
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=0.0001)
+    writer = SummaryWriter()
 
     for epoch in range(200):
             total_loss = 0
@@ -127,6 +150,8 @@ if __name__ == "__main__":
                 #print(batch.train_mask, '----')
                 optimizer.zero_grad()
                 embedding, pred = model(batch)
+                #print(batch.x.shape, batch.edge_index.shape, batch.batch.shape, batch.y.shape)
+                #print(pred)
                 label = batch.y
                 # if task == 'node':
                 #     pred = pred[batch.train_mask]
@@ -138,7 +163,7 @@ if __name__ == "__main__":
             total_loss /= len(train_loader.dataset)
             writer.add_scalar("loss", total_loss, epoch)
 
-            if epoch % 10 == 0:
+            if epoch % 5 == 0:
                 test_acc = test(test_loader, model)
                 print("Epoch {}. Loss: {:.4f}. Test accuracy: {:.4f}".format(
                     epoch, total_loss, test_acc))
