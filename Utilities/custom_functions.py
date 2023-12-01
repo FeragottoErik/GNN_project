@@ -16,7 +16,8 @@ from torch_geometric.utils.num_nodes import maybe_num_nodes
 from hcatnetwork.node import ArteryNodeTopology
 from torch_geometric.data import Data
 
-def get_processed_graphs_names_and_write_reference_txt(folder_path, root='/home/erikfer/GNN_project/DATA/SPLITTED_ARTERIES_DATA/'):
+def get_processed_graphs_names_and_write_reference_txt(folder_path='/home/erikfer/GNN_project/DATA/SPLITTED_ARTERIES_DATA/processed',\
+                                                        root='/home/erikfer/GNN_project/DATA/SPLITTED_ARTERIES_DATA/'):
     """This function enables to read the content of the folder processed of root folder of dataset
     and write the .txt file that hosts the list of the names of the graphs that are needed
     to already ecist within processed folder in order to skip process method during dataset instantiation"""
@@ -204,21 +205,61 @@ def visualize_graphs_from_folder(folder='/home/erikfer/GNN_project/DATA/SPLITTED
 def make_ostia_origin_and_normalize(side_graph, normalize=True):
     """ This function enables to shift the origin of the graph to the ostium node and to normalize the coordinates of the nodes
     obs: ostium_id is not the node index but the id of the ostium in the graph annotation file"""
-    for n in side_graph.nodes:
-        if n['topology'] == 'OSTIUM':
-            xyz_ostium = n.get_vertex_and_radius_numpy_array()[:3]
-            break
+
+
+    # data = defaultdict(list)
+
+    # if side_graph.number_of_nodes() > 0:
+    #     node_attrs = list(next(iter(side_graph.nodes(data=True)))[-1].keys())
+    # else:
+    #     node_attrs = {}
+    
+    coord_list = list()
+    for i, (name, feat_dict) in enumerate(side_graph.nodes(data=True)):
+        coord_list.append(np.array([feat_dict['x'], feat_dict['y'], feat_dict['z']], dtype=np.float32))
+        if feat_dict['topology'].name == 'OSTIUM':
+            xyz_ostium = np.array([side_graph.nodes[name]['x'], side_graph.nodes[name]['y'], \
+                                    side_graph.nodes[name]['z']], dtype=np.float32)
+
     assert xyz_ostium is not None, "The ostium node is not found"
-    coords_and_radius = side_graph.get_vertex_and_radius_numpy_array()
-    shifted_coords_and_radius = coords_and_radius - xyz_ostium
+    assert len(coord_list) == side_graph.number_of_nodes(), "The number of coordinates is not equal to the number of nodes"
+    coord_matrix = np.array(coord_list, dtype=np.float32)
+    coord_matrix_shifted = coord_matrix - xyz_ostium
     
     if normalize:
-        coords = shifted_coords_and_radius[:, :3]
-        radius = shifted_coords_and_radius[:, 3]
-        min_coords = np.min(coords, axis=0)
-        max_coords = np.max(coords, axis=0)
-        coords = (coords - min_coords) / (max_coords - min_coords)
-        shifted_coords_and_radius[:, :3] = coords
+        min_coords = np.min(coord_matrix_shifted, axis=0)
+        max_coords = np.max(coord_matrix_shifted, axis=0)
+        coords = (coord_matrix_shifted - min_coords) / (max_coords - min_coords)
+        coord_matrix_shifted = coords
     
-    side_graph.set_vertex_and_radius_numpy_array(shifted_coords_and_radius)
+    for i, (name, feat_dict) in enumerate(side_graph.nodes(data=True)):
+        side_graph.nodes[name]['x'] = float(coord_matrix_shifted[i, 0])
+        side_graph.nodes[name]['y'] = float(coord_matrix_shifted[i, 1])
+        side_graph.nodes[name]['z'] = float(coord_matrix_shifted[i, 2])
+
     return side_graph
+
+def test_make_ostia_origin_and_normalize():
+    # Create a test graph
+    side_graph = nx.Graph()
+    side_graph.add_node('A', x='0.5', y='0.5', z='0.5', topology=ArteryNodeTopology.SEGMENT)
+    side_graph.add_node('B', x='0.2', y='0.8', z='0.3', topology=ArteryNodeTopology.OSTIUM)
+    side_graph.add_node('C', x='0.7', y='0.3', z='0.9', topology=ArteryNodeTopology.ENDPOINT)
+
+    # Call the function
+    result = make_ostia_origin_and_normalize(side_graph)
+
+    # Check if all values of x, y, z are between 0 and 1
+    for name, feat_dict in result.nodes(data=True):
+        x = float(feat_dict['x'])
+        y = float(feat_dict['y'])
+        z = float(feat_dict['z'])
+        assert 0 <= x <= 1, f"Value of x ({x}) is not between 0 and 1"
+        assert 0 <= y <= 1, f"Value of y ({y}) is not between 0 and 1"
+        assert 0 <= z <= 1, f"Value of z ({z}) is not between 0 and 1"
+
+    # Check if OSTIUM is at coordinates 0, 0, 0
+    ostium_node = result.nodes['B']
+    assert float(ostium_node['x']) == 0 or float(ostium_node['y']) == 0 or float(ostium_node['z']) == 0, \
+    'OSTIUM node is not in a starting coordinate i.e. it is 0 in at least one coordinate'
+    print('Test passed')

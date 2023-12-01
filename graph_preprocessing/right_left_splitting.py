@@ -112,10 +112,8 @@ for i, sample in enumerate(DATASET_CAT08_GRAPHS_RESAMPLED_05MM): # "Normal", or 
     right_artery_node_list= list()
 
     for k, n in enumerate(g.nodes): # n is the node id as string
-
         if len(g.get_relative_coronary_ostia_node_id(n)) > 1: #to spot codominant hearts
             warn("Warning: node {} is connected to more than one ostium".format(n))
-
         node_ostium=g.get_relative_coronary_ostia_node_id(n)[0] #first element of the tuple is the ostium id
         if node_ostium == left_ostium: #the node is connected to the left ostium 
             #since no sample represent a codominant heart all nodes are either connected to right or left ostium

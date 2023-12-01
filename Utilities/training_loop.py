@@ -121,8 +121,8 @@ if __name__ == "__main__":
     #TODO: use separated and controlled samples for testing and training, two different datasets, not splitted from the same one
     # train_dataset = dataset[:round(len(dataset) * 0.8)]
     # test_dataset = dataset[round(len(dataset) * 0.8):]
-    train_dataset = dataset[:40]
-    test_dataset = dataset[40:80] #try to overfit on a small dataset
+    train_dataset = dataset[:10]
+    test_dataset = dataset[80:] #try to overfit on a small dataset
 
     # Create data loaders
     train_loader = DataLoader(train_dataset, batch_size=1, shuffle=True)
@@ -143,7 +143,7 @@ if __name__ == "__main__":
     optimizer = optim.Adam(model.parameters(), lr=0.0001)
     writer = SummaryWriter()
 
-    for epoch in range(200):
+    for epoch in range(50):
             total_loss = 0
             model.train()
             for batch in train_loader:
@@ -163,7 +163,7 @@ if __name__ == "__main__":
             total_loss /= len(train_loader.dataset)
             writer.add_scalar("loss", total_loss, epoch)
 
-            if epoch % 5 == 0:
+            if epoch % 1 == 0:
                 test_acc = test(test_loader, model)
                 print("Epoch {}. Loss: {:.4f}. Test accuracy: {:.4f}".format(
                     epoch, total_loss, test_acc))
