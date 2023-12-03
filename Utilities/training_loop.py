@@ -29,9 +29,7 @@ def compute_and_write_embeddings(writer, dataset):
     return
 
 
-
-
-# Define your GNN model
+# Define GNN model
 class GNNStack(nn.Module):
     def __init__(self, input_dim, hidden_dim, output_dim, task='graph'):
         super(GNNStack, self).__init__()
@@ -121,11 +119,11 @@ if __name__ == "__main__":
     #TODO: use separated and controlled samples for testing and training, two different datasets, not splitted from the same one
     # train_dataset = dataset[:round(len(dataset) * 0.8)]
     # test_dataset = dataset[round(len(dataset) * 0.8):]
-    train_dataset = dataset[:10]
-    test_dataset = dataset[80:] #try to overfit on a small dataset
+    train_dataset = dataset[:70]
+    test_dataset = dataset[70:] #try to overfit on a small dataset
 
     # Create data loaders
-    train_loader = DataLoader(train_dataset, batch_size=1, shuffle=True)
+    train_loader = DataLoader(train_dataset, batch_size=4, shuffle=True)
     test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False)
 
     if VERBOSE:
