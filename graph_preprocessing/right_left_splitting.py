@@ -44,6 +44,15 @@ VERBOSE = True
 PLOT = False
 MAKE_OSTIA_ORIGIN = True
 
+#in DATA_PATH, check if a 'raw' folder exists, otherwise create it with the structure described above
+if not os.path.exists(os.path.join(DATA_PATH, 'raw')):
+    os.makedirs(os.path.join(DATA_PATH, 'raw'))
+    os.makedirs(os.path.join(DATA_PATH, 'raw', 'left_artery'))
+    os.makedirs(os.path.join(DATA_PATH, 'raw', 'right_artery'))
+    os.makedirs(os.path.join(DATA_PATH, 'raw', 'left_artery', 'ASOCA'))
+    os.makedirs(os.path.join(DATA_PATH, 'raw', 'left_artery', 'CAT08'))
+    os.makedirs(os.path.join(DATA_PATH, 'raw', 'right_artery', 'ASOCA'))
+    os.makedirs(os.path.join(DATA_PATH, 'raw', 'right_artery', 'CAT08'))
 
 graph_annotation = {
     "graphs": [

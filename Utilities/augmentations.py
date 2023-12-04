@@ -152,7 +152,6 @@ def random_noise_on_node_position(graph: nx.Graph, max_shift=None):
     """Adds random noise to the position of a random node in the graph updating as needed the edge weights
     and euclidean distances. The maximal random shift in position of the node is half of the shortest edge length.
     Otherwise it can couse overlapping of edges or loss of spatial sequentiality.
-    Visualization gets wierd for large shifts like > 0.05*min_dist.
 
     Args:
         graph (nx.Graph): the graph to augment
@@ -173,7 +172,7 @@ def random_noise_on_node_position(graph: nx.Graph, max_shift=None):
     #maximal random shift in position must be half of the shortest edge length
     #otherwise it can couse overlapping of edges or loss of spatial sequentiality
     if max_shift is None or max_shift > min_dist/2:
-        if max_shift > min_dist/2:
+        if max_shift is not None and (max_shift > min_dist/2):
             warnings.warn("The maximal random shift in position of the node is greater than the half of the shortest edge length. The maximal random shift in position of the node is set to half of the shortest edge length")
         max_shift = min_dist/2
 
@@ -274,7 +273,7 @@ if __name__ == "__main__":
     # Set up the dataset
     #dataset = ArteryGraphDataset(root='/home/erikfer/GNN_project/DATA/SPLITTED_ARTERIES_DATA/', ann_file='graphs_annotation.json')
     # Split the dataset into training and test sets with 80-20 splitting
-    folder='/home/erikfer/GNN_project/DATA/SPLITTED_ARTERIES_DATA_normalized/'
+    folder='/home/erikfer/GNN_project/DATA/SPLITTED_ARTERIES_Normalized/'
     with open(os.path.join(folder, 'raw/graphs_annotation.json'), "r") as json_file:
         data = json.load(json_file)
 
@@ -287,10 +286,9 @@ if __name__ == "__main__":
                                       output_type=hcatnetwork.graph.SimpleCenterlineGraph)
         #hcatnetwork.draw.draw_simple_centerlines_graph_2d(g, backend="networkx")
         
-        #aug_graph = random_noise_on_node_position(g, 0.01)
+        #aug_graph = random_noise_on_node_position(g)
         #hcatnetwork.draw.draw_simple_centerlines_graph_2d(aug_graph, backend="networkx")
 
-        aug_graph, max_dist = random_graph_portion_selection(g, 'random', 'OSTIUM')
-        max_dist_from_ostium.append(max_dist)
-        #hcatnetwork.draw.draw_simple_centerlines_graph_2d(aug_graph, backend="networkx")
-    print(max(max_dist_from_ostium), min(max_dist_from_ostium))
+        aug_graph= random_graph_portion_selection(g, 'random', 'OSTIUM')
+        hcatnetwork.draw.draw_simple_centerlines_graph_2d(aug_graph, backend="networkx")
+    #print(max(max_dist_from_ostium), min(max_dist_from_ostium))

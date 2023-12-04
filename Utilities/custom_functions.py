@@ -237,6 +237,15 @@ def make_ostia_origin_and_normalize(side_graph, normalize=True):
         side_graph.nodes[name]['y'] = float(coord_matrix_shifted[i, 1])
         side_graph.nodes[name]['z'] = float(coord_matrix_shifted[i, 2])
 
+    #update edge length: weight and euclidean distance
+    for i, (u, v, feat_dict) in enumerate(side_graph.edges(data=True)):
+        u_xyz_coord=np.array([side_graph.nodes[u]['x'], side_graph.nodes[u]['y'], side_graph.nodes[u]['z']], dtype=np.float32)
+        v_xyz_coord=np.array([side_graph.nodes[v]['x'], side_graph.nodes[v]['y'], side_graph.nodes[v]['z']], dtype=np.float32)
+        #update the weight of the edge between u and v
+        # print(graph[u][v]['euclidean_distance'])
+        side_graph[u][v]['weight'] = float(np.linalg.norm(u_xyz_coord-v_xyz_coord))
+        side_graph[u][v]['euclidean_distance'] = float(np.linalg.norm(u_xyz_coord-v_xyz_coord))
+
     return side_graph
 
 def test_make_ostia_origin_and_normalize():
