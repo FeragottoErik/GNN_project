@@ -16,8 +16,8 @@ from torch_geometric.utils.num_nodes import maybe_num_nodes
 from hcatnetwork.node import ArteryNodeTopology
 from torch_geometric.data import Data
 
-def get_processed_graphs_names_and_write_reference_txt(folder_path='/home/erikfer/GNN_project/DATA/SPLITTED_ARTERIES_DATA/processed',\
-                                                        root='/home/erikfer/GNN_project/DATA/SPLITTED_ARTERIES_DATA/'):
+def get_processed_graphs_names_and_write_reference_txt(folder_path='/home/erikfer/GNN_project/DATA/SPLITTED_ARTERIES_Normalized/processed',\
+                                                        root='/home/erikfer/GNN_project/DATA/SPLITTED_ARTERIES_Normalized/'):
     """This function enables to read the content of the folder processed of root folder of dataset
     and write the .txt file that hosts the list of the names of the graphs that are needed
     to already ecist within processed folder in order to skip process method during dataset instantiation"""

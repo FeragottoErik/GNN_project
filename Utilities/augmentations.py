@@ -6,8 +6,9 @@ import hcatnetwork
 import random
 import warnings
 from Utilities.custom_functions import get_subgraph_from_nbunch
+from hcatnetwork.node import ArteryNodeTopology
 
-def apply_augmentation_to_graph(graph: nx.Graph, augmentation: list[str], prob=0.5, **kwargs):
+def apply_augmentation_to_graph(graph: nx.Graph, augmentation: list[str], prob=0.5, n_changes=1,**kwargs):
     """Applies the specified augmentation to the given graph and returns the augmented graph.
     Available augmentations:
     - 'random_node_deletion': deletes a random node from the graph
@@ -35,36 +36,32 @@ def apply_augmentation_to_graph(graph: nx.Graph, augmentation: list[str], prob=0
     if np.random.random() > prob:
         return graph
 
-    # Apply the augmentation
+    # Apply all selected augmentations
+    if 'all' in augmentation:
+        augmentation = ['random_node_deletion', 'random_edge_deletion', 'random_edge_addition', 'random_noise_on_node_position',\
+                        'random_graph_portion_selection']
+        
     for aug in augmentation:
         if aug == 'random_node_deletion':
-            graph = random_node_deletion(graph)
+            graph = random_node_deletion(graph, n_changes)
         elif aug == 'random_edge_deletion':
-            graph = random_edge_deletion(graph)
-        elif aug == 'random_node_addition':
-            graph = random_node_addition(graph)
+            graph = random_edge_deletion(graph, n_changes)
+        # elif aug == 'random_node_addition':
+        #     graph = random_node_addition(graph, n_changes)
         elif aug == 'random_edge_addition':
-            graph = random_edge_addition(graph)
-        elif aug == 'random_node_attribute_change':
-            graph = random_node_attribute_change(graph)
-        elif aug == 'random_edge_attribute_change':
-            graph = random_edge_attribute_change(graph)
-        elif aug == 'random_node_attribute_deletion':
-            graph = random_node_attribute_deletion(graph)
-        elif aug == 'random_edge_attribute_deletion':
-            graph = random_edge_attribute_deletion(graph)
+            graph = random_edge_addition(graph, n_changes)
+        # elif aug == 'random_node_attribute_change':
+        #     graph = random_node_attribute_change(graph, n_changes)
         elif aug == 'random_noise_on_node_position':
             graph = random_noise_on_node_position(graph)
-        elif aug == 'chunk_random_segment':
-            graph = chunk_random_segment(graph)
         elif aug == 'random_graph_portion_selection':
-            graph = random_graph_portion_selection(graph)
+            graph = random_graph_portion_selection(graph, 'random', 'OSTIUM')
         else:
             raise ValueError("Augmentation not recognized")
 
     return graph
 
-def random_node_deletion(graph: nx.Graph):
+def random_node_deletion(graph: nx.Graph, n_nodes: int = 1):
     """Deletes a random node from the graph
 
     Args:
@@ -73,15 +70,20 @@ def random_node_deletion(graph: nx.Graph):
     Returns:
         nx.Graph: the augmented graph
     """
-    # Select a random node
-    node = np.random.choice(list(graph.nodes))
+    for _ in range(n_nodes):
+        # Select a random node
+        node = random.choice(list(graph.nodes))
 
-    # Delete the node
-    graph.remove_node(node)
+        #remove the edges that have as one of the nodes the node that has been deleted
+        connected_edges = list(graph.edges(node))
+        graph.remove_edges_from(connected_edges)
+
+        # Delete the node
+        graph.remove_node(node)
 
     return graph
 
-def random_edge_deletion(graph: nx.Graph):
+def random_edge_deletion(graph: nx.Graph, n_edges: int = 1):
     """Deletes a random edge from the graph
 
     Args:
@@ -90,15 +92,16 @@ def random_edge_deletion(graph: nx.Graph):
     Returns:
         nx.Graph: the augmented graph
     """
-    # Select a random edge
-    edge = np.random.choice(list(graph.edges))
+    for _ in range(n_edges):
+        # Select a random edge
+        edge = random.choice(list(graph.edges))
 
-    # Delete the edge
-    graph.remove_edge(*edge)
+        # Delete the edge
+        graph.remove_edge(*edge)
 
     return graph
 
-def random_node_addition(graph: nx.Graph):
+def random_node_addition(graph: nx.Graph, n_nodes: int = 1):
     """Adds a random node to the graph
 
     Args:
@@ -107,12 +110,65 @@ def random_node_addition(graph: nx.Graph):
     Returns:
         nx.Graph: the augmented graph
     """
-    # Add a new node
-    graph.add_node(graph.number_of_nodes())
+    for _ in range(n_nodes):
+        #compute maximal and minimal values for x,y,z coordinates in all nodes of the graph
+        max_x=0
+        min_x=1000
+        max_y=0
+        min_y=1000
+        max_z=0
+        min_z=1000
+        for i, (name, feat_dict) in enumerate(graph.nodes(data=True)):
+            if feat_dict['x'] > max_x:
+                max_x=feat_dict['x']
+            if feat_dict['x'] < min_x:
+                min_x=feat_dict['x']
+            if feat_dict['y'] > max_y:
+                max_y=feat_dict['y']
+            if feat_dict['y'] < min_y:
+                min_y=feat_dict['y']
+            if feat_dict['z'] > max_z:
+                max_z=feat_dict['z']
+            if feat_dict['z'] < min_z:
+                min_z=feat_dict['z']
+        
+        # Select a random set of coordinates between min and max of the target coordinate
+        x=np.random.uniform(low=min_x, high=max_x)
+        y=np.random.uniform(low=min_y, high=max_y)
+        z=np.random.uniform(low=min_z, high=max_z)
+
+        #find the first and the second closest nodes to the random coordinates
+        closest_node_1 = min(graph.nodes, key=lambda n: np.linalg.norm(np.array\
+                        ([graph.nodes[n]['x'], graph.nodes[n]['y'], graph.nodes[n]['z']], dtype=np.float32)-np.array([x, y, z], dtype=np.float32)))
+        dist_node_1 = float(np.linalg.norm(np.array\
+                        ([graph.nodes[closest_node_1]['x'], graph.nodes[closest_node_1]['y'], graph.nodes[closest_node_1]['z']], dtype=np.float32)-np.array([x, y, z], dtype=np.float32)))
+        closest_node_2 = min(graph.nodes, key=lambda n: np.linalg.norm(np.array\
+                        ([graph.nodes[n]['x'], graph.nodes[n]['y'], graph.nodes[n]['z']], dtype=np.float32)-np.array([x, y, z], dtype=np.float32)) if n != closest_node_1 else np.inf)
+        dist_node_2 = float(np.linalg.norm(np.array\
+                        ([graph.nodes[closest_node_2]['x'], graph.nodes[closest_node_2]['y'], graph.nodes[closest_node_2]['z']], dtype=np.float32)-np.array([x, y, z], dtype=np.float32)))
+        
+        #r is the mean between the 'r' value of closest_node_1 and the 'r' value of closest_node_2
+        r = float((graph.nodes[closest_node_1]['r']+graph.nodes[closest_node_2]['r'])/2)
+        #topology is SEGMENT (imposed)
+        topology = ArteryNodeTopology.SEGMENT
+        #t is 0 (imposed)
+        t = float(0)
+        #side is the 'side' attribute of closest_node_1
+        side = graph.nodes[closest_node_1]['side']
+
+
+        #add two edges and a node: the node has coordinates x,y,z, the edges connect x,y,z node to node_1 and node_2 with weight and euclidean_distance equal to the distance between the nodes
+        graph.add_node(str(len(graph.nodes)), x=x, y=y, z=z, r=r, topology=topology, t=t, side=side)
+        graph.add_edge(str(len(graph.nodes)-1), closest_node_1, weight=dist_node_1, euclidean_distance=dist_node_1)
+        graph.add_edge(str(len(graph.nodes)-1), closest_node_2, weight=dist_node_2, euclidean_distance=dist_node_2)
+        print(graph.nodes[str(len(graph.nodes)-1)])
+
+        # Add a new node to the graph and assign to 'x', 'y' and 'z' a random value between min and max of the target coordinate
+        #graph.add_node(len(graph.nodes), x=np.random.uniform(low=min_x, high=max_x), y=np.random.uniform(low=min_y, high=max_y), z=np.random.uniform(low=min_z, high=max_z))
 
     return graph
 
-def random_edge_addition(graph: nx.Graph):
+def random_edge_addition(graph: nx.Graph, n_edges: int = 1):
     """Adds a random edge to the graph
 
     Args:
@@ -121,15 +177,21 @@ def random_edge_addition(graph: nx.Graph):
     Returns:
         nx.Graph: the augmented graph
     """
-    # Select a random node
-    node = np.random.choice(list(graph.nodes))
+    for _ in range(n_edges):
+        # Select a random node
+        u = random.choice(list(graph.nodes))
+        v = random.choice(list(graph.nodes)) #.pop(list(graph.nodes).index(u)))
 
-    # Add a new edge
-    graph.add_edge(node, graph.number_of_nodes())
+        # Add a new edge between the two nodes selected and assign to 'weight' and 'euclidian_distance' the euclidean distance between the two nodes
+        u_xyz_coord=np.array([graph.nodes[u]['x'], graph.nodes[u]['y'], graph.nodes[u]['z']], dtype=np.float32)
+        v_xyz_coord=np.array([graph.nodes[v]['x'], graph.nodes[v]['y'], graph.nodes[v]['z']], dtype=np.float32)
+        dist = float(np.linalg.norm(u_xyz_coord-v_xyz_coord))
+        graph.add_edge(u, v, weight=dist, euclidean_distance=dist)
+
 
     return graph
 
-def random_node_attribute_change(graph: nx.Graph):
+def random_node_attribute_change(graph: nx.Graph, n_nodes: int = 1):
     """Changes the attribute of a random node in the graph
 
     Args:
@@ -138,13 +200,45 @@ def random_node_attribute_change(graph: nx.Graph):
     Returns:
         nx.Graph: the augmented graph
     """
-    # Select a random node
-    node = np.random.choice(list(graph.nodes))
 
-    # Change the attribute of the node
-    graph.nodes[node]['x'] = np.random.random()
-    graph.nodes[node]['y'] = np.random.random()
-    graph.nodes[node]['z'] = np.random.random()
+    #compute maximal and minimal values for x,y,z coordinates in all nodes of the graph
+    max_x=0
+    min_x=1000
+    max_y=0
+    min_y=1000
+    max_z=0
+    min_z=1000
+    for i, (name, feat_dict) in enumerate(graph.nodes(data=True)):
+        if feat_dict['x'] > max_x:
+            max_x=feat_dict['x']
+        if feat_dict['x'] < min_x:
+            min_x=feat_dict['x']
+        if feat_dict['y'] > max_y:
+            max_y=feat_dict['y']
+        if feat_dict['y'] < min_y:
+            min_y=feat_dict['y']
+        if feat_dict['z'] > max_z:
+            max_z=feat_dict['z']
+        if feat_dict['z'] < min_z:
+            min_z=feat_dict['z']
+
+    for _ in range(n_nodes):
+        # Select a random node
+        node = np.random.choice(list(graph.nodes))
+        # Change the attribute of the node so as to assign e random value between min and max of the target coordinate
+        graph.nodes[node]['x'] = np.random.uniform(low=min_x, high=max_x)
+        graph.nodes[node]['y'] = np.random.uniform(low=min_y, high=max_y)
+        graph.nodes[node]['z'] = np.random.uniform(low=min_z, high=max_z)
+
+        #list the edges that have as one of the nodes the node that has been modified
+        connected_edges = list(graph.edges(node))
+
+        #update the euclidean distance and the weight of the edges between the node and the connected nodes
+        for u, v in connected_edges:
+            u_xyz_coord=np.array([graph.nodes[u]['x'], graph.nodes[u]['y'], graph.nodes[u]['z']], dtype=np.float32)
+            v_xyz_coord=np.array([graph.nodes[v]['x'], graph.nodes[v]['y'], graph.nodes[v]['z']], dtype=np.float32)
+            graph[u][v]['euclidean_distance'] = float(np.linalg.norm(u_xyz_coord-v_xyz_coord))
+            graph[u][v]['weight'] = float(np.linalg.norm(u_xyz_coord-v_xyz_coord))
 
     return graph
 
@@ -205,8 +299,8 @@ def random_noise_on_node_position(graph: nx.Graph, max_shift=None):
         if graph[u][v]['weight'] > max_lenght:
             max_lenght=graph[u][v]['weight']
 
-    assert max_lenght < max_dist+min_dist, "The maximal edge length is greater than the sum of the greater edge length and the 2 times the maximal variation in position of the nodes"
-    assert min_lenght > 0, "The minimal edge length is negative or zero"
+    # assert max_lenght <= max_dist+min_dist, f"The maximal edge length {max_lenght}  is greater than the sum of the greater edge length {max_dist}  and the 2 times the maximal variation in position of the nodes {min_dist} "
+    # assert min_lenght > 0, "The minimal edge length is negative or zero"
 
     return graph
 
@@ -243,16 +337,22 @@ def random_graph_portion_selection(g: nx.Graph, neigh_dist: int | str = 'random'
             if feat_dict['topology'].name == start_node: #if the start_node is ENDPONT or INTERSECTION first occurence is selected
                 target_node = name
                 break
+    if target_node is None:
+        target_node = random.choice(list(g.nodes)) #accounts for the case in which the ostium or a node of interest has been 
+        #delated by other augmentations
     
     #compute the longhest segment from target_node in any direction in terms of number of nodes
     max_segment_length = max([len(path) for path in nx.single_source_shortest_path(g, target_node).values()])
     MAX_NEIGH_DIST=max_segment_length
+    if MAX_NEIGH_DIST<MIN_NEIGH_DIST:
+        MIN_NEIGH_DIST=MAX_NEIGH_DIST
 
     if isinstance(neigh_dist, int) and not (MIN_NEIGH_DIST <= neigh_dist <= MAX_NEIGH_DIST):
         warnings.warn(f"The neigh_dist parameter should be an integer between {MIN_NEIGH_DIST} and {MAX_NEIGH_DIST}")
     
     elif isinstance(neigh_dist, str):
         assert neigh_dist == 'random', "The neigh_dist parameter must be either an integer or the string 'random'"
+
         neigh_dist = random.randint(MIN_NEIGH_DIST, MAX_NEIGH_DIST)
 
     #create a list that contains all the nodes of the graph that are at a distance <= neigh_dist from the target_node 
@@ -286,9 +386,10 @@ if __name__ == "__main__":
                                       output_type=hcatnetwork.graph.SimpleCenterlineGraph)
         #hcatnetwork.draw.draw_simple_centerlines_graph_2d(g, backend="networkx")
         
-        #aug_graph = random_noise_on_node_position(g)
+        aug_graph = apply_augmentation_to_graph(g, ['all'], prob=1, n_changes=1)
         #hcatnetwork.draw.draw_simple_centerlines_graph_2d(aug_graph, backend="networkx")
 
-        aug_graph= random_graph_portion_selection(g, 'random', 'OSTIUM')
+        # aug_graph= random_graph_portion_selection(aug_graph, 'random', 'OSTIUM')
+        # aug_graph = random_node_addition(aug_graph, 1)
         hcatnetwork.draw.draw_simple_centerlines_graph_2d(aug_graph, backend="networkx")
     #print(max(max_dist_from_ostium), min(max_dist_from_ostium))
