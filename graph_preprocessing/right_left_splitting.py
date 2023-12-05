@@ -43,6 +43,7 @@ DATA_PATH
 VERBOSE = True
 PLOT = False
 MAKE_OSTIA_ORIGIN = True
+USE_ONLY_ANATOMIC_GRAPH = True
 
 #in DATA_PATH, check if a 'raw' folder exists, otherwise create it with the structure described above
 if not os.path.exists(os.path.join(DATA_PATH, 'raw')):
@@ -134,6 +135,10 @@ for i, sample in enumerate(DATASET_CAT08_GRAPHS_RESAMPLED_05MM): # "Normal", or 
 
     left_artery_graph = get_subgraph_from_nbunch(g, left_artery_node_list)
     right_artery_graph = get_subgraph_from_nbunch(g, right_artery_node_list)
+
+    # if USE_ONLY_ANATOMIC_GRAPH:
+    #     left_artery_graph = left_artery_graph.get_anatomic_subgraph()
+    #     right_artery_graph = right_artery_graph.get_anatomic_subgraph()
 
     if MAKE_OSTIA_ORIGIN:
         left_artery_graph = make_ostia_origin_and_normalize(left_artery_graph, True)

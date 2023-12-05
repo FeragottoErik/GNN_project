@@ -16,6 +16,7 @@ import random
 from sklearn.metrics import f1_score, recall_score, precision_score
 from sklearn.metrics import roc_curve, auc
 import matplotlib.pyplot as plt
+import copy
 
 
 def train_model(model, train_dataset, val_dataset, optimizer, writer=SummaryWriter(), batch_size=4, num_epochs=10):
@@ -27,6 +28,8 @@ def train_model(model, train_dataset, val_dataset, optimizer, writer=SummaryWrit
     val_f1_list = []
     val_rec_list = []
     val_prec_list = []
+    best_model_wts = copy.deepcopy(model.state_dict())
+    best_val_acc = 0.0
     for epoch in range(num_epochs):
             total_loss = 0
             model.train()
@@ -34,7 +37,7 @@ def train_model(model, train_dataset, val_dataset, optimizer, writer=SummaryWrit
                 if round(i/len(train_loader)*100, 2) % 10 == 0: #printing info each 10% of the training in every epoch
                     print(round(i/len(train_loader)*100, 2), '%', end='\r')
                 optimizer.zero_grad()
-                embedding, pred = model(batch)
+                _,_, pred = model(batch)
                 label = batch.y
                 loss = model.loss(pred, label)
                 loss.backward()
@@ -46,6 +49,10 @@ def train_model(model, train_dataset, val_dataset, optimizer, writer=SummaryWrit
 
             if epoch % 1 == 0:
                 val_acc, val_f1, val_rec, val_prec = test(val_loader, model)
+                #allows to save the best model based on validation accuracy
+                if val_acc > best_val_acc:
+                    best_val_acc = val_acc
+                    best_model_wts = copy.deepcopy(model.state_dict())
                 val_acc_list.append(val_acc)
                 val_f1_list.append(val_f1)
                 val_rec_list.append(val_rec)
@@ -56,8 +63,9 @@ def train_model(model, train_dataset, val_dataset, optimizer, writer=SummaryWrit
                 writer.add_scalar("Val f1", val_f1, epoch)
                 writer.add_scalar("Val recall", val_rec, epoch)
                 writer.add_scalar("Val precision", val_prec, epoch)
+    last_model = model.state_dict()
 
-    return model, train_loss, val_acc_list, val_f1_list, val_rec_list, val_prec_list
+    return last_model, best_model_wts, train_loss, val_acc_list, val_f1_list, val_rec_list, val_prec_list
 
 
 def test(loader, model, is_validation=False):
@@ -68,7 +76,7 @@ def test(loader, model, is_validation=False):
     y_pred = []
     for data in loader:
         with torch.no_grad():
-            emb, pred = model(data)
+            _,_, pred = model(data)
             pred = pred.argmax(dim=1)
             label = data.y
 
@@ -99,7 +107,7 @@ def test(loader, model, is_validation=False):
 
 if __name__ == "__main__":
     #set random seed
-    torch.manual_seed(1) #evn if seed is set to 1, results are varying from run to run
+    torch.manual_seed(1) #even if seed is set to 1, results are varying from run to run
     VERBOSE = True
     ROOT = '/home/erikfer/GNN_project/DATA/SPLITTED_ARTERIES_Normalized/'
     # Set up the dataset
@@ -143,35 +151,43 @@ if __name__ == "__main__":
 
     # Initialize the model
     task='graph'
-    model = GNNStack(dataset.num_node_features, 32, dataset.num_classes, num_layers=10,  task=task)
+    model = GNNStack(dataset.num_node_features, 32, dataset.num_classes,  task=task)
 
     # Define the loss function and optimizer
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=0.0001)
     writer = SummaryWriter()
 
-    if VERBOSE:
-        print("Starting training...")
+    # if VERBOSE:
+    #     print("Starting training...")
 
-    model, train_loss, val_acc, val_f1, val_rec, val_prec = train_model(model, train_dataset=train_dataset, \
-                                                 val_dataset=val_dataset, \
-                                                 optimizer=optimizer, writer=writer, num_epochs=50)
+    # last_model, best_model, train_loss, val_acc, val_f1, val_rec, val_prec = train_model(model, train_dataset=train_dataset, \
+    #                                                                                      val_dataset=val_dataset, \
+    #                                                                                      optimizer=optimizer, writer=writer,\
+    #                                                                                      num_epochs=1)
 
 
         
-    #save model as artery_model.pt
-    torch.save(model, 'artery_model.pt')
+    # #save model as artery_model.pt
+    # torch.save(best_model, 'artery_model_best_val_acc.pt')
+    # torch.save(last_model, 'artery_model_last.pt')
 
     # Compute ROC curve
     test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False)
+    model = GNNStack(dataset.num_node_features, 32, dataset.num_classes,  task=task)
+    #load best model
+    best_model = torch.load('artery_model_best_val_acc.pt')
+    model.load_state_dict(best_model)
     model.eval()
     y_true = []
     y_scores = []
     emb_list= []
+    graph_list = []
     for data in test_loader:
         with torch.no_grad():
-            emb, pred = model(data)
+            graph, emb, pred = model(data)
             emb_list.append(emb.tolist())
+            graph_list.append(graph)
             pred = pred.argmax(dim=1)
             label = data.y
         y_true.extend(label.tolist())
@@ -186,6 +202,14 @@ if __name__ == "__main__":
     emb_list = torch.tensor(emb_list).reshape(len(emb_list), -1)
     writer.add_embedding(emb_list, metadata=torch.tensor(y_true))
 
+    # # #try to visualize the graph where nodes color is proportional to activation vector of the last layer
+    # # # graph_activation = np.array(graph_list).view(len(graph_list), -1).sum(axis=1).reshape(-1, 1)
+    #create a list where elements are elements of graph_list but each element is of shape graph_lis(idx).shape[0], 1 so as to have the number of nodes and the sum of the activations
+    graph_activation = []
+    print(graph_list[0].shape)
+    for i in range(len(graph_list)):
+        graph_activation.append(graph_list[i].view(graph_list[i].shape[0], -1).sum(axis=1).reshape(-1, 1))
+    print(graph_activation[0].shape)
     # Plot ROC curve
     plt.figure()
     plt.plot(fpr, tpr, color='darkorange', lw=2, label='ROC curve (area = %0.2f)' % roc_auc)

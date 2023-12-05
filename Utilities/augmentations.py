@@ -9,6 +9,7 @@ from Utilities.custom_functions import get_subgraph_from_nbunch
 from hcatnetwork.node import ArteryNodeTopology
 from HearticDatasetManager.affine import get_affine_3d_rotation_around_vector
 from HearticDatasetManager.affine import apply_affine_3d
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
 def apply_augmentation_to_graph(graph: nx.Graph, augmentation: list[str], prob=0.5, n_changes=1,**kwargs):
     """Applies the specified augmentation to the given graph and returns the augmented graph.
@@ -25,24 +26,31 @@ def apply_augmentation_to_graph(graph: nx.Graph, augmentation: list[str], prob=0
     - 'chunk_random_segment': chunks a random segment of the graph
     - 'random_graph_portion_selection': selects a random portion of the graph pointing out a random node and 
                                         all the nodes within an euclidean distance from it
+    - 'random_graph_affine_transformation': applies a random affine transformation to the graph
+    - 'all': applies all the augmentations listed above
 
     Args:
         graph (nx.Graph): the graph to augment
         augmentation (list[str]): list of augmentations to apply to the graph
-        prob (float, optional): probability of applying the augmentation. Defaults to 0.5.
+        prob (float, optional): probability of applying each one of the augmentations. Defaults to 0.5.
     Returns:
         nx.Graph: the augmented graph
     """
 
+    """Use this if you want to apply the augmentation with a certain probability or return the unmodified graph, 
+    otherwise the augmentation is always applied with a certain probability augmentation-wise"""
     # Check if the augmentation should be applied
-    if np.random.random() > prob:
-        return graph
+    # if np.random.random() > prob:
+    #     return graph
 
     # Apply all selected augmentations
     if 'all' in augmentation:
-        augmentation = ['random_graph_portion_selection', 'random_noise_on_node_position']
+        augmentation = ['random_graph_portion_selection', 'random_noise_on_node_position', 'random_graph_affine_transformation']
         
+    #the prob to not apply any of the augmentations is (1-prob)**len(augmentation)
     for aug in augmentation:
+        if np.random.random() > prob: #the prob is not to apply or not any augmentation to the graph, but to apply or not the specific augmentation
+            continue
         # if aug == 'random_node_deletion':
         #     graph = random_node_deletion(graph, n_changes)
         # elif aug == 'random_edge_deletion':
@@ -57,6 +65,8 @@ def apply_augmentation_to_graph(graph: nx.Graph, augmentation: list[str], prob=0
             graph = random_noise_on_node_position(graph)
         elif aug == 'random_graph_portion_selection':
             graph = random_graph_portion_selection(graph, 'random', 'OSTIUM')
+        elif aug == 'random_graph_affine_transformation':
+            graph = random_graph_affine_transformation(graph, 'OSTIUM')
         else:
             raise ValueError("Augmentation not recognized")
 
@@ -374,7 +384,7 @@ def random_graph_portion_selection(g: nx.Graph, neigh_dist: int | str = 'random'
 
     return subgraph
 
-def random_graph_affine_transformation(g: nx.Graph, app_point: str | int = 'OSTIUM', vect: np.array | list = None, alpha_rad: float = None) -> nx.Graph:
+def random_graph_affine_transformation(g: nx.Graph, app_point: str | int = 'OSTIUM', vect: Union[np.array, list]= None, alpha_rad: float = None) -> nx.Graph:
     if isinstance(app_point, str):
         assert app_point in ['OSTIUM', 'random'], "The app_point parameter must be either an integer or the string 'OSTIUM' or the string 'random'"
     else:
@@ -443,7 +453,7 @@ def random_graph_affine_transformation(g: nx.Graph, app_point: str | int = 'OSTI
     #the euclidian distance between nodes is preserved because the transformation is affine -> no need to update edge attrs
     return g
 
-def flip_upside_down(g: nx.Graph) -> nx.Graph:
+def flip_graph_upside_down(g: nx.Graph) -> nx.Graph:
     """Flips the graph upside down with respect to the x axis (i.e. y and z coordinates are multiplied by -1)
 
     Args:
@@ -469,12 +479,12 @@ if __name__ == "__main__":
         category_id= cat_id_to_name[graph_raw["category_id"]]
         g = hcatnetwork.io.load_graph(file_path=os.path.join(folder, file_name),
                                       output_type=hcatnetwork.graph.SimpleCenterlineGraph)
-        #hcatnetwork.draw.draw_simple_centerlines_graph_2d(g, backend="networkx")
+        hcatnetwork.draw.draw_simple_centerlines_graph_2d(g, backend="networkx")
         
-        aug_graph = apply_augmentation_to_graph(g, ['all'], prob=1, n_changes=1)
+        aug_graph = random_graph_affine_transformation(g, app_point='random')
         #hcatnetwork.draw.draw_simple_centerlines_graph_2d(aug_graph, backend="networkx")
 
-        # aug_graph= random_graph_portion_selection(aug_graph, 'random', 'OSTIUM')
+        #aug_graph= random_graph_portion_selection(aug_graph, 'random', 'OSTIUM')
         # aug_graph = random_node_addition(aug_graph, 1)
         hcatnetwork.draw.draw_simple_centerlines_graph_2d(aug_graph, backend="networkx")
     #print(max(max_dist_from_ostium), min(max_dist_from_ostium))

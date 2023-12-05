@@ -10,7 +10,7 @@ from torch_geometric.nn import GAE
 
 # Define GNN model
 class GNNStack(nn.Module):
-    def __init__(self, input_dim, hidden_dim, output_dim, num_layers=3, task='graph'):
+    def __init__(self, input_dim, hidden_dim, output_dim, task='graph'):
         super(GNNStack, self).__init__()
         self.task = task
         self.convs = nn.ModuleList()
@@ -52,6 +52,7 @@ class GNNStack(nn.Module):
                 x = self.lns[i](x)
 
         if self.task == 'graph':
+            graph = x
             x = pyg_nn.global_mean_pool(x, batch)
             emb = x
 
@@ -59,7 +60,7 @@ class GNNStack(nn.Module):
         #compute the logits instead of the probabilities
         x = F.log_softmax(x, dim=1)
 
-        return emb, x
+        return graph, emb, x
 
     def loss(self, pred, label):
         return F.nll_loss(pred, label)
