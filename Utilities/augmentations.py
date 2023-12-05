@@ -7,6 +7,8 @@ import random
 import warnings
 from Utilities.custom_functions import get_subgraph_from_nbunch
 from hcatnetwork.node import ArteryNodeTopology
+from HearticDatasetManager.affine import get_affine_3d_rotation_around_vector
+from HearticDatasetManager.affine import apply_affine_3d
 
 def apply_augmentation_to_graph(graph: nx.Graph, augmentation: list[str], prob=0.5, n_changes=1,**kwargs):
     """Applies the specified augmentation to the given graph and returns the augmented graph.
@@ -38,21 +40,20 @@ def apply_augmentation_to_graph(graph: nx.Graph, augmentation: list[str], prob=0
 
     # Apply all selected augmentations
     if 'all' in augmentation:
-        augmentation = ['random_node_deletion', 'random_edge_deletion', 'random_edge_addition', 'random_noise_on_node_position',\
-                        'random_graph_portion_selection']
+        augmentation = ['random_graph_portion_selection', 'random_noise_on_node_position']
         
     for aug in augmentation:
-        if aug == 'random_node_deletion':
-            graph = random_node_deletion(graph, n_changes)
-        elif aug == 'random_edge_deletion':
-            graph = random_edge_deletion(graph, n_changes)
+        # if aug == 'random_node_deletion':
+        #     graph = random_node_deletion(graph, n_changes)
+        # elif aug == 'random_edge_deletion':
+        #     graph = random_edge_deletion(graph, n_changes)
         # elif aug == 'random_node_addition':
         #     graph = random_node_addition(graph, n_changes)
-        elif aug == 'random_edge_addition':
-            graph = random_edge_addition(graph, n_changes)
+        # elif aug == 'random_edge_addition':
+        #     graph = random_edge_addition(graph, n_changes)
         # elif aug == 'random_node_attribute_change':
         #     graph = random_node_attribute_change(graph, n_changes)
-        elif aug == 'random_noise_on_node_position':
+        if aug == 'random_noise_on_node_position':
             graph = random_noise_on_node_position(graph)
         elif aug == 'random_graph_portion_selection':
             graph = random_graph_portion_selection(graph, 'random', 'OSTIUM')
@@ -277,9 +278,9 @@ def random_noise_on_node_position(graph: nx.Graph, max_shift=None):
         xyz_coord=np.array([feat_dict['x'], feat_dict['y'], feat_dict['z']], dtype=np.float32)
         augment_array = np.random.uniform(low=-weight, high=weight, size=3)
         augmented_coord = xyz_coord + augment_array
-        graph.nodes[name]['x'] = augmented_coord[0]
-        graph.nodes[name]['y'] = augmented_coord[1]
-        graph.nodes[name]['z'] = augmented_coord[2]
+        graph.nodes[name]['x'] = float(augmented_coord[0])
+        graph.nodes[name]['y'] = float(augmented_coord[1])
+        graph.nodes[name]['z'] = float(augmented_coord[2])
 
 
     max_lenght=0
@@ -290,8 +291,8 @@ def random_noise_on_node_position(graph: nx.Graph, max_shift=None):
         v_xyz_coord=np.array([graph.nodes[v]['x'], graph.nodes[v]['y'], graph.nodes[v]['z']], dtype=np.float32)
         #update the weight of the edge between u and v
         # print(graph[u][v]['euclidean_distance'])
-        graph[u][v]['weight'] = np.linalg.norm(u_xyz_coord-v_xyz_coord)
-        graph[u][v]['euclidean_distance'] = np.linalg.norm(u_xyz_coord-v_xyz_coord)
+        graph[u][v]['weight'] = float(np.linalg.norm(u_xyz_coord-v_xyz_coord))
+        graph[u][v]['euclidean_distance'] = float(np.linalg.norm(u_xyz_coord-v_xyz_coord))
         # print(graph[u][v]['euclidean_distance'])
         # print('\n\n')
         if graph[u][v]['weight'] < min_lenght:
@@ -334,9 +335,15 @@ def random_graph_portion_selection(g: nx.Graph, neigh_dist: int | str = 'random'
 
     else:
         for i, (name, feat_dict) in enumerate(g.nodes(data=True)):
-            if feat_dict['topology'].name == start_node: #if the start_node is ENDPONT or INTERSECTION first occurence is selected
-                target_node = name
-                break
+            try:
+                if feat_dict['topology'].name == start_node: #if the start_node is ENDPONT or INTERSECTION first occurence is selected
+                    target_node = name
+                    break
+            except: #in case topology is not a ArteryNodeTopology enum but a string
+                if feat_dict['topology'] == start_node:
+                    target_node = name
+                    break
+
     if target_node is None:
         target_node = random.choice(list(g.nodes)) #accounts for the case in which the ostium or a node of interest has been 
         #delated by other augmentations
@@ -367,6 +374,84 @@ def random_graph_portion_selection(g: nx.Graph, neigh_dist: int | str = 'random'
 
     return subgraph
 
+def random_graph_affine_transformation(g: nx.Graph, app_point: str | int = 'OSTIUM', vect: np.array | list = None, alpha_rad: float = None) -> nx.Graph:
+    if isinstance(app_point, str):
+        assert app_point in ['OSTIUM', 'random'], "The app_point parameter must be either an integer or the string 'OSTIUM' or the string 'random'"
+    else:
+        assert isinstance(app_point, int), "The app_point parameter must be either an integer or the string 'OSTIUM' or the string 'random'"
+
+    if vect is not None and len(vect)!=3:
+        raise ValueError("The vect parameter must be a list or a numpy array of length 3 as the 3 dimensions x,y,z")
+
+    app_point_name = None
+    if app_point == 'OSTIUM':
+        #obs: if the graph is normalized with Utils.custom_functions.make_ostia_origin_and_normalize, the ostium is always in (0,0,0)
+        for i, (name, feat_dict) in enumerate(g.nodes(data=True)):
+            try:
+                if feat_dict['topology'].name == app_point: 
+                    app_point_name = name
+                    break
+            except:
+                if feat_dict['topology'] == app_point: #accounts for the case in which the typology is not an ArteryNodeTopology enum but a string
+                    app_point_name = name
+                    break
+
+        if app_point_name is None:
+            warnings.warn("The app_point parameter has no been found, it may indicate that there is no OSTIUM \
+                          in the graph, application point of the vector is selected randomly")
+    elif isinstance(app_point, int):
+        if app_point not in list(g.nodes):
+            warnings.warn("The app_point parameter must be an integer within the graph nodes names")
+        else:
+            app_point_name = str(app_point) #node names are strings not integers
+            
+    if app_point == 'random' or app_point_name is None:
+        #the point of application of the vector for the affine transformation is a random node of the graph
+        app_point_name = random.choice(list(g.nodes))
+
+    assert app_point_name is not None, "The app_point parameter has no been found error in the implementation code"
+
+    xyz_app_point = np.array([g.nodes[app_point_name]['x'], g.nodes[app_point_name]['y'], g.nodes[app_point_name]['z']], dtype=np.float32)
+
+    if vect is not None:
+        vect = np.array(vect, dtype=np.float32)
+    else:
+        vect = np.random.uniform(low=-1, high=1, size=3) #random vector of length 1 (versor) with random direction
+    
+    #create a matrix with all graph points x,y,z as rows
+    xyz_points = np.zeros((len(g.nodes), 3), dtype=np.float32)
+    for i, (name, feat_dict) in enumerate(g.nodes(data=True)):
+        xyz_points[i, 0] = float(feat_dict['x'])
+        xyz_points[i, 1] = float(feat_dict['y'])
+        xyz_points[i, 2] = float(feat_dict['z'])
+    #apply the affine transformation to the graph
+    if alpha_rad is None:
+        alpha_rad = np.random.uniform(low=-np.pi, high=np.pi)
+    else:
+        assert -np.pi <= float(alpha_rad) <= np.pi, "The alpha_rad parameter must be a float between -pi and pi since it is in radians"
+
+    transform = get_affine_3d_rotation_around_vector(xyz_app_point, vect, alpha_rad)
+    transformed_xyz_points = apply_affine_3d(transform, xyz_points.T).T
+    assert transformed_xyz_points.shape == xyz_points.shape, "The shape of the transformed points is different from the original points"
+
+    #reassign the new x,y,z coordinates to the graph nodes
+    for i, (name, feat_dict) in enumerate(g.nodes(data=True)):
+        g.nodes[name]['x'] = float(transformed_xyz_points[i, 0])
+        g.nodes[name]['y'] = float(transformed_xyz_points[i, 1])
+        g.nodes[name]['z'] = float(transformed_xyz_points[i, 2])
+
+    #the euclidian distance between nodes is preserved because the transformation is affine -> no need to update edge attrs
+    return g
+
+def flip_upside_down(g: nx.Graph) -> nx.Graph:
+    """Flips the graph upside down with respect to the x axis (i.e. y and z coordinates are multiplied by -1)
+
+    Args:
+        g (nx.Graph): the graph to augment"""
+    
+    g = random_graph_affine_transformation(g, app_point='OSTIUM', vect=[1,0,0], alpha_rad=np.pi)
+
+    return g
 
 
 if __name__ == "__main__":

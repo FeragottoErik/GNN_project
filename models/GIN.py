@@ -46,7 +46,6 @@ class GNNStack(nn.Module):
 
         for i in range(self.num_layers):
             x = self.convs[i](x, edge_index)
-            emb = x
             x = F.leaky_relu(x) #to avoid dead ReLU
             x = F.dropout(x, p=self.dropout, training=self.training)
             if not i == self.num_layers - 1:
@@ -54,6 +53,7 @@ class GNNStack(nn.Module):
 
         if self.task == 'graph':
             x = pyg_nn.global_mean_pool(x, batch)
+            emb = x
 
         x = self.post_mp(x)
         #compute the logits instead of the probabilities

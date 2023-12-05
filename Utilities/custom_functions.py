@@ -141,6 +141,7 @@ def from_networkx(
 
     if group_edge_attrs is all:
         group_edge_attrs = list(edge_attrs)
+
     if group_edge_attrs is not None:
         xs = []
         for key in group_edge_attrs:

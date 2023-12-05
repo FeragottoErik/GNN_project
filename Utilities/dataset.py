@@ -6,6 +6,8 @@ import warnings
 from torch_geometric.data import Dataset, Data
 from Utilities.custom_functions import from_networkx
 import unittest
+import random
+from Utilities.augmentations import apply_augmentation_to_graph
 
 class ArteryGraphDataset(Dataset): #it is not an InMemoryDataset because it is not possible to load all the graphs in memory
     """ArteryGraphDataset is a custom dataset for artery tree graph level classification (i.e. left/right classification
@@ -31,12 +33,16 @@ class ArteryGraphDataset(Dataset): #it is not an InMemoryDataset because it is n
         None
 
     """
-    def __init__(self, root, ann_file: str, node_atts= ["x", "y", "z", "r", "topology"], edge_atts=['weight'], transform=None, pre_transform=None):
+    def __init__(self, root, ann_file: str, node_atts: list = ["x", "y", "z", "r", "topology"], edge_atts: list = ['weight'], augment: float = None, transform=None, pre_transform=None):
         self.node_atts = node_atts #["x", "y", "z", "t", "r", "topology", "side"]
         self.edge_atts = edge_atts #weight/euclidean_distance
         #nodes and edges attributes list must be assigned before calling the super constructor because it is used in the process method
         self.ann_file = ann_file
         self.VERBOSE = True
+        self.augment = augment
+        with open(os.path.join(root,'raw' , self.ann_file), 'r') as json_file:
+            self.g_annotation = json.load(json_file)
+
         super(ArteryGraphDataset, self).__init__(root, transform, pre_transform)
 
     @property
@@ -83,16 +89,16 @@ class ArteryGraphDataset(Dataset): #it is not an InMemoryDataset because it is n
             # Convert the NetworkX graph to PyTorch Geometric Data
             pyGeo_Data = from_networkx(graph, self.node_atts, self.edge_atts)
 
-            assert pyGeo_Data.x is not None and pyGeo_Data.edge_index is not None and pyGeo_Data.edge_attr is not None, "The graph is not correctly converted to PyTorch Geometric Data object"
+            #assert pyGeo_Data.x is not None and pyGeo_Data.edge_index is not None and pyGeo_Data.edge_attr is not None, "The graph is not correctly converted to PyTorch Geometric Data object"
             """The pyGeo_Data object is a PyTorch Geometric Data object with the following attributes:
             - pyGeo_Data.x: Node feature matrix with shape [num_nodes, num_node_features]
             - pyGeo_Data.edge_index: Graph connectivity in COO format with shape [2, num_edges] and type torch.long
             - pyGeo_Data.edge_attr: Edge feature matrix with shape [num_edges, num_edge_features]"""
             # adding the ground truth at graph level to assign to each class the right/left label
             if pyGeo_Data.y is not None:
-                warnings.warn("The graph-level label is already assigned to the 'y' attribute of the Data object {}.", pyGeo_Data.y)
-            else:
-                pyGeo_Data.y = torch.tensor([category_id], dtype=torch.long) #pyGeo_Data.y: Graph-level label with shape [1] and type torch.long
+                warnings.warn(f"The graph-level label is already assigned to the 'y' attribute of the Data object.") #this happens 
+                #because one of the node attributes is y but is not added to the ndoe features so is never deleted from pytorch Data keys
+            pyGeo_Data.y = torch.tensor([category_id], dtype=torch.long) #pyGeo_Data.y: Graph-level label with shape [1] and type torch.long
             # Add the graph to the list
             #data_list.append(pyGeo_Data)
             torch.save(pyGeo_Data, os.path.join(self.processed_dir, f'data_{idx}.pt'))
@@ -118,9 +124,37 @@ class ArteryGraphDataset(Dataset): #it is not an InMemoryDataset because it is n
         return len(self.processed_file_names)
 
     def get(self, idx):
-        data = torch.load(os.path.join(self.processed_dir, f'data_{idx}.pt'))
+        if self.augment is None:
+            data = torch.load(os.path.join(self.processed_dir, f'data_{idx}.pt'))
+        else:
+            #extract a random float number, if grater than self.augment, the graph is not augmented
+            random_number = random.random()
+            if random_number > self.augment:
+                data = torch.load(os.path.join(self.processed_dir, f'data_{idx}.pt'))
+            else:
+                data = self._augment_data(idx)
         return data
  
+    def _augment_data(self, idx):
+        graph_data = self.g_annotation["graphs"][idx]
+        category_id = graph_data["category_id"]
+        file_name = graph_data["file_name"]
+
+        # Load the graph from the GML file
+        graph = nx.read_gml(os.path.join(self.root, file_name))
+        augmented_graph = apply_augmentation_to_graph(graph, ['all'], prob=1)
+
+        # Convert the NetworkX graph to PyTorch Geometric Data
+        pyGeo_Data = from_networkx(augmented_graph, self.node_atts, self.edge_atts)
+
+        if pyGeo_Data.y is not None:
+                warnings.warn(f"The graph-level label is already assigned to the 'y' attribute of the Data object.") #this happens 
+                #because one of the node attributes is y but is not added to the ndoe features so is never deleted from pytorch Data keys
+        pyGeo_Data.y = torch.tensor([category_id], dtype=torch.long) #pyGeo_Data.y: Graph-level label with shape [1] and type torch.long
+        # Add the graph to the list
+
+        return pyGeo_Data
+
 
 
 class TestArteryGraphDataset(unittest.TestCase):
