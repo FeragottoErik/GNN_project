@@ -9,7 +9,7 @@ from tensorboardX import SummaryWriter
 from torch_geometric.nn import GCNConv
 from torch_geometric.nn import GAE
 import os
-from Utilities.custom_functions import get_processed_graphs_names_and_write_reference_txt
+from Utilities.custom_functions import generate_graph_activation_map
 import numpy as np
 from models.GIN import *
 import random
@@ -17,6 +17,7 @@ from sklearn.metrics import f1_score, recall_score, precision_score
 from sklearn.metrics import roc_curve, auc
 import matplotlib.pyplot as plt
 import copy
+import hcatnetwork
 
 
 def train_model(model, train_dataset, val_dataset, optimizer, writer=SummaryWriter(), batch_size=4, num_epochs=10):
@@ -37,7 +38,7 @@ def train_model(model, train_dataset, val_dataset, optimizer, writer=SummaryWrit
                 if round(i/len(train_loader)*100, 2) % 10 == 0: #printing info each 10% of the training in every epoch
                     print(round(i/len(train_loader)*100, 2), '%', end='\r')
                 optimizer.zero_grad()
-                _,_, pred = model(batch)
+                _, pred = model(batch)
                 label = batch.y
                 loss = model.loss(pred, label)
                 loss.backward()
@@ -76,7 +77,7 @@ def test(loader, model, is_validation=False):
     y_pred = []
     for data in loader:
         with torch.no_grad():
-            _,_, pred = model(data)
+            _, pred = model(data)
             pred = pred.argmax(dim=1)
             label = data.y
 
@@ -110,8 +111,10 @@ if __name__ == "__main__":
     torch.manual_seed(1) #even if seed is set to 1, results are varying from run to run
     VERBOSE = True
     ROOT = '/home/erikfer/GNN_project/DATA/SPLITTED_ARTERIES_Normalized/'
+    NODE_ATTS = ['x', 'y', 'z', "topology"]
+    EDGE_ATTS = ['weight']
     # Set up the dataset
-    dataset = ArteryGraphDataset(root=ROOT, ann_file='graphs_annotation.json', node_atts=['x', 'y', 'z', "topology"], edge_atts=['weight'], augment=0.9)
+    dataset = ArteryGraphDataset(root=ROOT, ann_file='graphs_annotation.json', node_atts=NODE_ATTS, edge_atts=EDGE_ATTS, augment=0.9)
     #print length of the node features of the dataset
     if VERBOSE:
         print(f"Number of node features: {dataset.num_node_features}")
@@ -158,19 +161,19 @@ if __name__ == "__main__":
     optimizer = optim.Adam(model.parameters(), lr=0.0001)
     writer = SummaryWriter()
 
-    # if VERBOSE:
-    #     print("Starting training...")
+    if VERBOSE:
+        print("Starting training...")
 
-    # last_model, best_model, train_loss, val_acc, val_f1, val_rec, val_prec = train_model(model, train_dataset=train_dataset, \
-    #                                                                                      val_dataset=val_dataset, \
-    #                                                                                      optimizer=optimizer, writer=writer,\
-    #                                                                                      num_epochs=1)
+    last_model, best_model, train_loss, val_acc, val_f1, val_rec, val_prec = train_model(model, train_dataset=train_dataset, \
+                                                                                         val_dataset=val_dataset, \
+                                                                                         optimizer=optimizer, writer=writer,\
+                                                                                         num_epochs=30)
 
 
         
-    # #save model as artery_model.pt
-    # torch.save(best_model, 'artery_model_best_val_acc.pt')
-    # torch.save(last_model, 'artery_model_last.pt')
+    #save model as artery_model.pt
+    torch.save(best_model, 'artery_model_best_val_acc.pt')
+    torch.save(last_model, 'artery_model_last.pt')
 
     # Compute ROC curve
     test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False)
@@ -181,13 +184,12 @@ if __name__ == "__main__":
     model.eval()
     y_true = []
     y_scores = []
+    #create a list to store the embeddings of the test samples i.e. the output of pooling layer before the final FC layers
     emb_list= []
-    graph_list = []
     for data in test_loader:
         with torch.no_grad():
-            graph, emb, pred = model(data)
+            emb, pred = model(data)
             emb_list.append(emb.tolist())
-            graph_list.append(graph)
             pred = pred.argmax(dim=1)
             label = data.y
         y_true.extend(label.tolist())
@@ -202,14 +204,13 @@ if __name__ == "__main__":
     emb_list = torch.tensor(emb_list).reshape(len(emb_list), -1)
     writer.add_embedding(emb_list, metadata=torch.tensor(y_true))
 
-    # # #try to visualize the graph where nodes color is proportional to activation vector of the last layer
-    # # # graph_activation = np.array(graph_list).view(len(graph_list), -1).sum(axis=1).reshape(-1, 1)
-    #create a list where elements are elements of graph_list but each element is of shape graph_lis(idx).shape[0], 1 so as to have the number of nodes and the sum of the activations
-    graph_activation = []
-    print(graph_list[0].shape)
-    for i in range(len(graph_list)):
-        graph_activation.append(graph_list[i].view(graph_list[i].shape[0], -1).sum(axis=1).reshape(-1, 1))
-    print(graph_activation[0].shape)
+
+    #visualize the activation maps of the test samples re-projected on graph structure    
+    for i in test_indices:
+        graph = dataset.get_row_netwrorkx_graph(i)
+        hcatnetwork.draw.draw_simple_centerlines_graph_2d(graph, backend="networkx")
+        generate_graph_activation_map(graph, NODE_ATTS, EDGE_ATTS, model, backend='networkx')
+
     # Plot ROC curve
     plt.figure()
     plt.plot(fpr, tpr, color='darkorange', lw=2, label='ROC curve (area = %0.2f)' % roc_auc)

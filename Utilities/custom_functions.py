@@ -1,4 +1,5 @@
 import networkx as nx
+import networkx
 from hcatnetwork.graph import SimpleCenterlineGraph
 import hcatnetwork
 from collections import defaultdict
@@ -13,8 +14,13 @@ from torch.utils.dlpack import from_dlpack, to_dlpack
 import os
 import torch_geometric
 from torch_geometric.utils.num_nodes import maybe_num_nodes
-from hcatnetwork.node import ArteryNodeTopology
+from hcatnetwork.node import ArteryNodeTopology, ArteryNodeSide
 from torch_geometric.data import Data
+from hcatnetwork.draw.styles import *
+import numpy
+import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
+from hcatnetwork.draw.draw import SimpleCenterlineGraphInteractiveDrawer
 
 def get_processed_graphs_names_and_write_reference_txt(folder_path='/home/erikfer/GNN_project/DATA/SPLITTED_ARTERIES_Normalized/processed',\
                                                         root='/home/erikfer/GNN_project/DATA/SPLITTED_ARTERIES_Normalized/'):
@@ -159,7 +165,11 @@ def from_networkx(
 
 
 def one_hot_encoding_topologies(value: str) -> torch.Tensor:
-    assert any(value.upper() == topology.name for topology in ArteryNodeTopology), f"Expected value to be part of ArteryNodeTopology, got {value}"
+    if isinstance(value, str):
+        assert any(value.upper() == topology.name for topology in ArteryNodeTopology), f"Expected value to be part of ArteryNodeTopology, got {value}"
+    else:
+        assert isinstance(value, ArteryNodeTopology), f"Expected value to be part of ArteryNodeTopology or to be a str, got {value}"
+        value = value.name
     topology_number = len(ArteryNodeTopology)
     topology_mask=[value.upper() == topology.name for topology in ArteryNodeTopology]
     topology_one_hot = torch.zeros(topology_number)
@@ -206,14 +216,6 @@ def visualize_graphs_from_folder(folder='/home/erikfer/GNN_project/DATA/SPLITTED
 def make_ostia_origin_and_normalize(side_graph, normalize=True):
     """ This function enables to shift the origin of the graph to the ostium node and to normalize the coordinates of the nodes
     obs: ostium_id is not the node index but the id of the ostium in the graph annotation file"""
-
-
-    # data = defaultdict(list)
-
-    # if side_graph.number_of_nodes() > 0:
-    #     node_attrs = list(next(iter(side_graph.nodes(data=True)))[-1].keys())
-    # else:
-    #     node_attrs = {}
     
     coord_list = list()
     for i, (name, feat_dict) in enumerate(side_graph.nodes(data=True)):
@@ -273,3 +275,138 @@ def test_make_ostia_origin_and_normalize():
     assert float(ostium_node['x']) == 0 or float(ostium_node['y']) == 0 or float(ostium_node['z']) == 0, \
     'OSTIUM node is not in a starting coordinate i.e. it is 0 in at least one coordinate'
     print('Test passed')
+
+
+def draw_graph_activation_map(graph: networkx.Graph | SimpleCenterlineGraph, activation: np.array, backend: str = "networkx"):
+    """Draws the Coronary Artery tree centerlines in an interactive way where the color-code of the nodes is given by the amount
+    of activation associated to that node. The activation is given by the model and is a value between 0 and 1.
+    
+    Parameters
+    ----------
+    graph : networkx.Graph
+        The graph to draw. Assumes this kind of dictionaries:
+            nodes: hcatnetwork.node.SimpleCenterlineNodeAttributes
+            edges: hcatnetwork.edge.SimpleCenterlineEdgeAttributes
+            graph: hcatnetwork.graph.SimpleCenterlineGraph
+    activation : np.array
+        The activation of each node. Must be of shape [n,1] where n is the number of nodes in the graph.
+    backend : str, optional = ["hcatnetwork", "networkx", "debug"]
+        The backend to use for drawing. Defaults to "networkx".
+            "hcatnetwork": Not Implemented
+            "networkx": uses the networkx library to draw the graph in a simpler way (no interactivity). Its backend is matplotlib.
+            "debug": Not Implemented
+    """
+    
+    # Figure
+    fig, ax = plt.subplots(
+        num="Centerlines Graph 2D Viewer | HCATNetwork",
+        dpi=FIGURE_DPI
+    )
+    fig.set_facecolor(FIGURE_FACECOLOR)
+    # Axes
+    ax.set_facecolor(AXES_FACECOLOR)
+    ax.set_aspect(
+        aspect=AXES_ASPECT_TYPE,
+        adjustable=AXES_ASPECT_ADJUSTABLE,
+        anchor=AXES_ASPECT_ANCHOR
+    )
+    ax.grid(
+        visible=True, 
+        zorder=-100, 
+        color=AXES_GRID_COLOR, 
+        linestyle=AXES_GRID_LINESTYLE, 
+        alpha=AXES_GRID_ALPHA, 
+        linewidth=AXES_GRID_LINEWIDTH
+    )
+    ax.set_xlabel("mm")
+    ax.set_ylabel("mm")
+    ax.get_xaxis().set_units("mm")
+    ax.get_yaxis().set_units("mm")
+    ax.set_axisbelow(True)
+    ax.set_title(graph.graph["image_id"])
+    # Content
+    if backend == "hcatnetwork" or backend == None:
+        raise NotImplementedError("Backend \"hcatnetwork\" is not implemented yet. Select networkx instead.")
+    elif backend == "networkx":
+        #############
+        # NETWORKX
+        # NICE
+        #############
+        node_pos = {n_id: [n['x'],n['y']] for n_id, n in zip(graph.nodes(), graph.nodes.values())}
+        node_size = 4*numpy.pi*numpy.array([n["r"] for n in graph.nodes.values()])*2
+        node_color = ["" for n in graph.nodes]
+        node_color = get_color_from_array(activation)
+        node_color = numpy.array(node_color)
+        node_edge_width = numpy.zeros((graph.number_of_nodes(),))
+        networkx.draw_networkx(
+            G=graph,
+            # nodes
+            pos=node_pos,
+            node_size=node_size,
+            node_color=node_color,
+            linewidths=node_edge_width,
+            with_labels=False,
+            # edges
+            edge_color=EDGE_FACECOLOR_DEFAULT,
+            width=0.4,
+            ax=ax
+        )
+        # # plot points of interest above the graph
+        # special_nodes_id = [n for n in graph.nodes if (graph.degree[n] == 1 or graph.degree[n] > 2)]
+        # special_nodes_id_plot = [i for i,n in enumerate(graph.nodes) if n in special_nodes_id]
+        # ax.scatter(
+        #     x = [node_pos[n_id][0] for n_id in special_nodes_id],
+        #     y = [node_pos[n_id][1] for n_id in special_nodes_id],
+        #     c = [node_color[i] for i in special_nodes_id_plot],
+        #     s = 1.2*node_size[special_nodes_id_plot],
+        #     zorder=10**6
+        # )
+        # legend
+
+    elif backend == "debug":
+        raise NotImplementedError("Backend \"debug\" is not implemented yet. Select networkx instead.")
+    else:
+        raise ValueError(f"Backend {backend} not supported.")
+    # Rescale axes view to content
+    ax.autoscale_view()
+    plt.tight_layout()
+    plt.show()
+
+
+#given an array of shape [n,1], create function that maps the values to a color proportionally to the value from the min to the max
+def get_color_from_array(array: np.ndarray, colormap: matplotlib.colors.LinearSegmentedColormap = matplotlib.cm.get_cmap("viridis")) -> np.ndarray:
+    """Given an array of shape [n,1], create function that maps the values to a color proportionally to the value from the min to the max"""
+    array = np.array(array)
+    array = array.reshape(-1, 1)
+    norm = matplotlib.colors.Normalize(vmin=np.min(array), vmax=np.max(array))
+    color = colormap(norm(array))
+
+    return color
+
+def generate_graph_activation_map(graph: nx.Graph, node_attr: list, edge_attr: list, model: any, backend: str = 'networkx'):
+    """Plot the graph with a color-code based on the activation of the nodes given by the model
+    Parameters
+    ----------
+    graph : networkx.Graph
+        The graph to draw. Assumes this kind of dictionaries:
+            nodes: hcatnetwork.node.SimpleCenterlineNodeAttributes
+            edges: hcatnetwork.edge.SimpleCenterlineEdgeAttributes
+            graph: hcatnetwork.graph.SimpleCenterlineGraph
+    node_attr : list
+        The list of the node attributes to be used as input to the model
+    edge_attr : list
+        The list of the edge attributes to be used as input to the model
+    model : any
+        The model to use to compute the activation of the nodes
+    backend : str, optional = ["hcatnetwork", "networkx", "debug"]
+        The backend to use for drawing. Defaults to "networkx".
+            "hcatnetwork": Not Implemented
+            "networkx": uses the networkx library to draw the graph in a simpler way (no interactivity). Its backend is matplotlib.
+            "debug": Not Implemented
+    """
+    pyGeo_data = from_networkx(graph, node_attr, edge_attr)
+    model.eval()
+    graph_act = model.get_activation(pyGeo_data)
+    #reducing to 1 dimension for feature activation
+    graph_act = graph_act.view(graph_act.shape[0], -1).sum(axis=1).reshape(-1, 1).detach().numpy()
+    draw_graph_activation_map(graph, graph_act, backend=backend)

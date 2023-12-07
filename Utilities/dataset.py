@@ -8,6 +8,7 @@ from Utilities.custom_functions import from_networkx
 import unittest
 import random
 from Utilities.augmentations import apply_augmentation_to_graph
+import hcatnetwork
 
 class ArteryGraphDataset(Dataset): #it is not an InMemoryDataset because it is not possible to load all the graphs in memory
     """ArteryGraphDataset is a custom dataset for artery tree graph level classification (i.e. left/right classification
@@ -122,6 +123,13 @@ class ArteryGraphDataset(Dataset): #it is not an InMemoryDataset because it is n
 
     def len(self):
         return len(self.processed_file_names)
+    
+    def get_row_netwrorkx_graph(self, idx):
+        graph_data = self.g_annotation["graphs"][idx]
+        file_name = graph_data["file_name"]
+        g = hcatnetwork.io.load_graph(file_path=os.path.join(self.root, file_name),
+                                      output_type=hcatnetwork.graph.SimpleCenterlineGraph)
+        return g
 
     def get(self, idx):
         if self.augment is None:
@@ -156,29 +164,37 @@ class ArteryGraphDataset(Dataset): #it is not an InMemoryDataset because it is n
         return pyGeo_Data
 
 
-
 class TestArteryGraphDataset(unittest.TestCase):
+    #TODO: correct the tests to match the new dataset structure
     def setUp(self):
         self.dataset = ArteryGraphDataset(root='/home/erikfer/GNN_project/DATA/SPLITTED_ARTERIES_DATA/', ann_file='graphs_annotation.json')
-
-    def test_raw_file_names(self):
-        self.assertEqual(self.dataset.raw_file_names, ['graphs_annotation.json'])
-
-    def test_processed_file_names(self):
-        self.assertEqual(self.dataset.processed_file_names, ['no_item'])
-
+    
     def test_len(self):
-        pass
-        #self.assertEqual(self.dataset.len(), 0)  # Assuming no processed files yet
-
+        self.assertEqual(len(self.dataset), 96)
+    
     def test_get(self):
-        data = self.dataset.get(0)
-        self.assertIsNotNone(data)
-        self.assertEqual(data.x.shape, (691, 8))  # Replace num_nodes and num_node_features with actual values
-        self.assertEqual(data.edge_index.shape, (2, 1380))  # Replace num_edges with actual value
-        self.assertEqual(data.edge_attr.shape, (1380, 1))  # Replace num_edge_features with actual value
-        self.assertEqual(data.y.shape, (1,))  # Assuming graph-level label is a single value
+        data = self.dataset[0]
+        self.assertEqual(data.y, torch.tensor([1], dtype=torch.long))
+        self.assertEqual(data.x.shape, torch.Size([data.num_nodes, 5]))
+        self.assertEqual(data.edge_index.shape, torch.Size([2, data.num_edges]))
+        self.assertEqual(data.edge_attr.shape, torch.Size([data.num_edges, 1]))
+
+    def test_get_node_feats_by_graph(self):
+        node_feats = self.dataset._get_node_feats_by_graph(0)
+        self.assertEqual(node_feats.shape, torch.Size([node_feats.shape[0], 5]))
+    
+    def test_get_edge_feats_by_graph(self):
+        edge_feats = self.dataset._get_edge_feats_by_graph(0)
+        self.assertEqual(edge_feats.shape, torch.Size([edge_feats.shape[0], 1]))
+    
+    def test_get_edge_index_by_graph(self):
+        edge_index = self.dataset._get_edge_index_by_graph(0)
+        self.assertEqual(edge_index.shape, torch.Size([2, edge_index.shape[1]]))
+    
+    def test_get_row_netwrorkx_graph(self):
+        g = self.dataset.get_row_netwrorkx_graph(0)
+        self.assertEqual(g.grap)
 
 if __name__ == '__main__':
     unittest.main()
-    dataset=ArteryGraphDataset(root='/home/erikfer/GNN_project/DATA/SPLITTED_ARTERIES_DATA/', ann_file='graphs_annotation.json')
+    dataset=ArteryGraphDataset(root='/home/erikfer/GNN_project/DATA/SPLITTED_ARTERIES_Normalized/', ann_file='graphs_annotation.json')

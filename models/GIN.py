@@ -52,7 +52,6 @@ class GNNStack(nn.Module):
                 x = self.lns[i](x)
 
         if self.task == 'graph':
-            graph = x
             x = pyg_nn.global_mean_pool(x, batch)
             emb = x
 
@@ -60,7 +59,24 @@ class GNNStack(nn.Module):
         #compute the logits instead of the probabilities
         x = F.log_softmax(x, dim=1)
 
-        return graph, emb, x
+        return emb, x
+    
+    def get_activation(self, data):
+        x, edge_index, batch = data.x, data.edge_index, data.batch
+        if data.num_node_features == 0:
+          x = torch.ones(data.num_nodes, 1)
+
+        for i in range(self.num_layers):
+            x = self.convs[i](x, edge_index)
+            x = F.leaky_relu(x) #to avoid dead ReLU
+            x = F.dropout(x, p=self.dropout, training=self.training)
+            if not i == self.num_layers - 1:
+                x = self.lns[i](x)
+
+        if self.task == 'graph':
+            activation = x
+
+        return activation
 
     def loss(self, pred, label):
         return F.nll_loss(pred, label)
