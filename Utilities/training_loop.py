@@ -116,6 +116,10 @@ if __name__ == "__main__":
     EDGE_ATTS = ['weight']
     # Set up the dataset
     dataset = ArteryGraphDataset(root=ROOT, ann_file='graphs_annotation.json', node_atts=NODE_ATTS, edge_atts=EDGE_ATTS, augment=0.9)
+    #get the model
+    MODEL = GATcustom(dataset.num_node_features, 32, 2, 3, dropout=0.25)
+    #MODEL = GNNStack(dataset.num_node_features, 32, dataset.num_classes,  task='graph')
+    
     #print length of the node features of the dataset
     if VERBOSE:
         print(f"Number of node features: {dataset.num_node_features}")
@@ -156,11 +160,15 @@ if __name__ == "__main__":
     # Initialize the model
     task='graph'
     #model = GNNStack(dataset.num_node_features, 32, dataset.num_classes,  task=task)
-    model = GATcustom(dataset.num_node_features, 32, 3, 32, 0.25)
-
+    model = MODEL
     # Define the loss function and optimizer
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=0.0001)
+    warmup_factor = 0.1
+    warmup_epochs = 5
+    total_epochs = 30
+    scheduler = optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lambda epoch: (1 - warmup_factor) * epoch / warmup_epochs if epoch < warmup_epochs else warmup_factor ** (epoch - warmup_epochs))
+    
     writer = SummaryWriter()
 
     if VERBOSE:
@@ -179,7 +187,7 @@ if __name__ == "__main__":
 
     # Compute ROC curve
     test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False)
-    model = GNNStack(dataset.num_node_features, 32, dataset.num_classes,  task=task)
+    model = MODEL #it would be better to initialize the model instead of overwriting the trained one but the result is the same
     #load best model
     best_model = torch.load('artery_model_best_val_acc.pt')
     model.load_state_dict(best_model)
@@ -191,7 +199,6 @@ if __name__ == "__main__":
     for data in test_loader:
         with torch.no_grad():
             emb, pred = model(data)
-            print(emb.shape)
             emb_list.append(emb.tolist())
             pred = pred.argmax(dim=1)
             label = data.y

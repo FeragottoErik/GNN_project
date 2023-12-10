@@ -112,9 +112,10 @@ class GATcustom(GAT):
     def __init__(
         self,
         in_channels: int,
-        hidden_channels: int,
+        hidden_channels: int, #hidden dimension in convolution
+        num_classes: int, #final number of classes at graph level
         num_layers: int,
-        out_channels: Optional[int] = None,
+        out_channels: Optional[int] = None, #output channels of the last convolutional layer
         dropout: float = 0.0,
         act: Union[str, Callable, None] = "relu",
         act_first: bool = False,
@@ -125,10 +126,11 @@ class GATcustom(GAT):
         **kwargs,
     ):
         super(GATcustom, self).__init__(in_channels, hidden_channels, num_layers, out_channels, dropout, act, act_first, act_kwargs, norm, norm_kwargs, jk, **kwargs)
+        self.task = 'graph'
+        self.num_classes = num_classes
         self.post_mp = nn.Sequential(
             nn.Linear(hidden_channels, hidden_channels), nn.Dropout(0.25), 
-            nn.Linear(hidden_channels, 2)) #solve to have 2 classes , for now out_channels are the number of channels before the FCNN
-        self.task = 'graph'
+            nn.Linear(hidden_channels, self.num_classes)) #solve to have 2 classes , for now out_channels are the number of channels before the FCNN
     def forward(  # noqa
         self,
         data,
