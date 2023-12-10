@@ -18,6 +18,7 @@ from sklearn.metrics import roc_curve, auc
 import matplotlib.pyplot as plt
 import copy
 import hcatnetwork
+from torch_geometric.nn.models.basic_gnn import GAT 
 
 
 def train_model(model, train_dataset, val_dataset, optimizer, writer=SummaryWriter(), batch_size=4, num_epochs=10):
@@ -154,7 +155,8 @@ if __name__ == "__main__":
 
     # Initialize the model
     task='graph'
-    model = GNNStack(dataset.num_node_features, 32, dataset.num_classes,  task=task)
+    #model = GNNStack(dataset.num_node_features, 32, dataset.num_classes,  task=task)
+    model = GATcustom(dataset.num_node_features, 32, 3, 32, 0.25)
 
     # Define the loss function and optimizer
     criterion = nn.CrossEntropyLoss()
@@ -189,6 +191,7 @@ if __name__ == "__main__":
     for data in test_loader:
         with torch.no_grad():
             emb, pred = model(data)
+            print(emb.shape)
             emb_list.append(emb.tolist())
             pred = pred.argmax(dim=1)
             label = data.y
@@ -204,10 +207,9 @@ if __name__ == "__main__":
     emb_list = torch.tensor(emb_list).reshape(len(emb_list), -1)
     writer.add_embedding(emb_list, metadata=torch.tensor(y_true))
 
-
     #visualize the activation maps of the test samples re-projected on graph structure    
     for i in test_indices:
-        graph = dataset.get_row_netwrorkx_graph(i)
+        graph = dataset.get_raw_netwrorkx_graph(i)
         hcatnetwork.draw.draw_simple_centerlines_graph_2d(graph, backend="networkx")
         generate_graph_activation_map(graph, NODE_ATTS, EDGE_ATTS, model, backend='networkx')
 

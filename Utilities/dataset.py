@@ -124,7 +124,7 @@ class ArteryGraphDataset(Dataset): #it is not an InMemoryDataset because it is n
     def len(self):
         return len(self.processed_file_names)
     
-    def get_row_netwrorkx_graph(self, idx):
+    def get_raw_netwrorkx_graph(self, idx):
         graph_data = self.g_annotation["graphs"][idx]
         file_name = graph_data["file_name"]
         g = hcatnetwork.io.load_graph(file_path=os.path.join(self.root, file_name),
