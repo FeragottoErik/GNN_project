@@ -5,7 +5,7 @@ import json
 import hcatnetwork
 import random
 import warnings
-from Utilities.custom_functions import get_subgraph_from_nbunch
+from Utilities.custom_functions import get_subgraph_from_nbunch, find_connected_nodes
 from hcatnetwork.node import ArteryNodeTopology
 from HearticDatasetManager.affine import get_affine_3d_rotation_around_vector
 from HearticDatasetManager.affine import apply_affine_3d
@@ -463,6 +463,46 @@ def flip_graph_upside_down(g: nx.Graph) -> nx.Graph:
 
     return g
 
+def trim_graph_random_branch(g: nx.Graph) -> nx.Graph:
+    """Trims a random branch of the graph (i.e. deletes all the nodes that follow a random node which has a degree greater than 2,
+    that represents a biforcation of the graph)
+
+    Args:
+        g (nx.Graph): the graph to augment"""
+    #select a random node with degree greater than 2
+    node = random.choice([n for n in g.nodes if g.degree[n] > 2])
+    #check if the node attribute topology is 'INTERSECTION'
+    try:
+        assert g.nodes[node]['topology'].name == 'INTERSECTION', "The node selected is not an intersection"
+    except:
+        assert g.nodes[node]['topology'] == 'INTERSECTION', "The node selected is not an intersection"
+
+    
+    paths=find_connected_nodes(g, node)
+    #discard the path that contains the 'OSTIUM' node
+    #find the name of the ostium node that has as ['topology'] attribute 'OSTIUM'
+    ostium_name = None
+    for i, (name, feat_dict) in enumerate(g.nodes(data=True)):
+        try:
+            if feat_dict['topology'].name == 'OSTIUM': 
+                ostium_name = name
+                break
+        except:
+            if feat_dict['topology'] == 'OSTIUM':
+                ostium_name = name
+                break
+    if ostium_name is None:
+        warnings.warn("The ostium node has not been found, the graph may not have an ostium")
+
+    paths = [path for path in paths if ostium_name not in path]
+    #select as target_path the shortest path
+    target_path = min(paths, key=len)
+    #get a list of all the nodes that are not in the target_path (except the first node of the target_path)
+    nodes_to_keep = [n for n in g.nodes if n not in target_path[1:]]
+    #create a subgraph containing only the nodes in nodes_to_keep
+    subgraph = get_subgraph_from_nbunch(g, nodes_to_keep)
+
+    return subgraph
 
 if __name__ == "__main__":
     # Set up the dataset
@@ -481,7 +521,7 @@ if __name__ == "__main__":
                                       output_type=hcatnetwork.graph.SimpleCenterlineGraph)
         hcatnetwork.draw.draw_simple_centerlines_graph_2d(g, backend="networkx")
         
-        aug_graph = random_graph_affine_transformation(g, app_point='random')
+        aug_graph = trim_graph_random_branch(g)
         #hcatnetwork.draw.draw_simple_centerlines_graph_2d(aug_graph, backend="networkx")
 
         #aug_graph= random_graph_portion_selection(aug_graph, 'random', 'OSTIUM')

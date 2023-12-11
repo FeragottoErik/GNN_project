@@ -9,7 +9,7 @@ from tensorboardX import SummaryWriter
 from torch_geometric.nn import GCNConv
 from torch_geometric.nn import GAE
 import os
-from Utilities.custom_functions import generate_graph_activation_map
+from Utilities.custom_functions import generate_graph_activation_map, from_networkx
 import numpy as np
 from models.GIN import *
 import random
@@ -19,6 +19,7 @@ import matplotlib.pyplot as plt
 import copy
 import hcatnetwork
 from torch_geometric.nn.models.basic_gnn import GAT 
+from Utilities.augmentations import random_graph_portion_selection
 
 
 def train_model(model, train_dataset, val_dataset, optimizer, writer=SummaryWriter(), batch_size=4, num_epochs=10):
@@ -36,8 +37,8 @@ def train_model(model, train_dataset, val_dataset, optimizer, writer=SummaryWrit
             total_loss = 0
             model.train()
             for i, batch in enumerate(train_loader):
-                if round(i/len(train_loader)*100, 2) % 10 == 0: #printing info each 10% of the training in every epoch
-                    print(round(i/len(train_loader)*100, 2), '%', end='\r')
+                if round(i*batch.batch/len(train_loader)*100, 2) % 10 == 0: #printing info each 10% of the training in every epoch
+                    print(round(i*batch.batch/len(train_loader)*100, 2), '%', end='\r')
                 optimizer.zero_grad()
                 _, pred = model(batch)
                 label = batch.y
@@ -108,8 +109,13 @@ def test(loader, model, is_validation=False):
 
 
 if __name__ == "__main__":
-    #set random seed
-    torch.manual_seed(1) #even if seed is set to 1, results are varying from run to run
+    #set random torch seed
+    torch.manual_seed(1)
+    #set numpy random seed
+    np.random.seed(1)
+    #set random python seed
+    random.seed(1)
+
     VERBOSE = True
     ROOT = '/home/erikfer/GNN_project/DATA/SPLITTED_ARTERIES_Normalized/'
     NODE_ATTS = ['x', 'y', 'z', "topology"]
@@ -161,28 +167,28 @@ if __name__ == "__main__":
     task='graph'
     model = MODEL
     # Define the loss function and optimizer
-    criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=0.0001)
-    warmup_factor = 0.1
-    warmup_epochs = 5
-    total_epochs = 30
-    scheduler = optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lambda epoch: (1 - warmup_factor) * epoch / warmup_epochs if epoch < warmup_epochs else warmup_factor ** (epoch - warmup_epochs))
+    # # criterion = nn.CrossEntropyLoss()
+    # # optimizer = optim.Adam(model.parameters(), lr=0.0001)
+    # # warmup_factor = 0.1
+    # # warmup_epochs = 5
+    # # total_epochs = 30
+    #scheduler = optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lambda epoch: (1 - warmup_factor) * epoch / warmup_epochs if epoch < warmup_epochs else warmup_factor ** (epoch - warmup_epochs))
     
     writer = SummaryWriter()
 
-    if VERBOSE:
-        print("Starting training...")
+    # # if VERBOSE:
+    # #     print("Starting training...")
 
-    last_model, best_model, train_loss, val_acc, val_f1, val_rec, val_prec = train_model(model, train_dataset=train_dataset, \
-                                                                                         val_dataset=val_dataset, \
-                                                                                         optimizer=optimizer, writer=writer,\
-                                                                                         num_epochs=30)
+    # # last_model, best_model, train_loss, val_acc, val_f1, val_rec, val_prec = train_model(model, train_dataset=train_dataset, \
+    # #                                                                                      val_dataset=val_dataset, \
+    # #                                                                                      optimizer=optimizer, writer=writer,\
+    # #                                                                                      num_epochs=30)
 
 
         
-    #save model as artery_model.pt
-    torch.save(best_model, 'artery_model_best_val_acc.pt')
-    torch.save(last_model, 'artery_model_last.pt')
+    # # #save model as artery_model.pt
+    # # torch.save(best_model, 'artery_model_best_val_acc.pt')
+    # # torch.save(last_model, 'artery_model_last.pt')
 
     # Compute ROC curve
     test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False)
@@ -191,43 +197,80 @@ if __name__ == "__main__":
     best_model = torch.load('artery_model_best_val_acc.pt')
     model.load_state_dict(best_model)
     model.eval()
-    y_true = []
-    y_scores = []
-    #create a list to store the embeddings of the test samples i.e. the output of pooling layer before the final FC layers
-    emb_list= []
-    for data in test_loader:
-        with torch.no_grad():
-            emb, pred = model(data)
-            emb_list.append(emb.tolist())
-            pred = pred.argmax(dim=1)
-            label = data.y
-        y_true.extend(label.tolist())
-        y_scores.extend(pred.tolist())
-    y_scores = np.array(y_scores)
-    y_true = np.array(y_true)
+    # # y_true = []
+    # # y_scores = []
+    # # #create a list to store the embeddings of the test samples i.e. the output of pooling layer before the final FC layers
+    # # emb_list= []
+    # # for data in test_loader:
+    # #     with torch.no_grad():
+    # #         emb, pred = model(data)
+    # #         emb_list.append(emb.tolist())
+    # #         pred = pred.argmax(dim=1)
+    # #         label = data.y
+    # #     y_true.extend(label.tolist())
+    # #     y_scores.extend(pred.tolist())
+    # # y_scores = np.array(y_scores)
+    # # y_true = np.array(y_true)
 
-    fpr, tpr, thresholds = roc_curve(y_true, y_scores)
-    roc_auc = auc(fpr, tpr)
+    # # fpr, tpr, thresholds = roc_curve(y_true, y_scores)
+    # # roc_auc = auc(fpr, tpr)
 
-    #given emb_list and y_true list, project to tensorbaord embeddings the labelled emb_lsit elements with labels from y_true
-    emb_list = torch.tensor(emb_list).reshape(len(emb_list), -1)
-    writer.add_embedding(emb_list, metadata=torch.tensor(y_true))
+    # # #given emb_list and y_true list, project to tensorbaord embeddings the labelled emb_lsit elements with labels from y_true
+    # # emb_list = torch.tensor(emb_list).reshape(len(emb_list), -1)
+    # # writer.add_embedding(emb_list, metadata=torch.tensor(y_true))
+    
+    #create a for loop of an index that starts at 10 and ends at 600 with a step of 10
+    acc_hist = []  
+    for j in range(10, 600, 10):
+        correct = 0
+        #print the progression percentage of the loop
+        print(round(j/600*100, 2), '%', end='\r')
+        for i in test_indices:
+            with torch.no_grad():
+                #get the graph from the test dataset
+                graph = dataset.get_raw_netwrorkx_graph(i)
+                graph_trimmed = random_graph_portion_selection(graph, j, 'OSTIUM')
+                pyGeo_graph = from_networkx(graph_trimmed, NODE_ATTS, EDGE_ATTS)
+                #assign the graph label to pygeo object
+                pyGeo_graph.y = torch.tensor([dataset[i].y], dtype=torch.long)
+                #get model prediction on trimmed graph
+                _, pred = model(pyGeo_graph)
+                pred = pred.argmax(dim=1)
+                label = pyGeo_graph.y
+                #compute metrics
+                correct += pred.eq(label).sum().item()
+        total = len(test_indices)
+        accuracy = correct / total
+        acc_hist.append(accuracy)
 
-    #visualize the activation maps of the test samples re-projected on graph structure    
-    for i in test_indices:
-        graph = dataset.get_raw_netwrorkx_graph(i)
-        hcatnetwork.draw.draw_simple_centerlines_graph_2d(graph, backend="networkx")
-        generate_graph_activation_map(graph, NODE_ATTS, EDGE_ATTS, model, backend='networkx')
-
-    # Plot ROC curve
+    #plot accuracy vs graph portion
     plt.figure()
-    plt.plot(fpr, tpr, color='darkorange', lw=2, label='ROC curve (area = %0.2f)' % roc_auc)
-    plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
-    plt.xlim([0.0, 1.0])
-    plt.ylim([0.0, 1.05])
-    plt.xlabel('False Positive Rate')
-    plt.ylabel('True Positive Rate')
-    plt.title('Receiver Operating Characteristic')
-    plt.legend(loc="lower right")
+    plt.plot(range(10, 600, 10), acc_hist)
+    plt.xlabel('Graph portion')
+    plt.ylabel('Accuracy')
+    plt.title('Accuracy vs Graph portion')
     plt.show()
+
+
+
+
+
+
+    # # #visualize the activation maps of the test samples re-projected on graph structure    
+    # # for i in test_indices:
+    # #     graph = dataset.get_raw_netwrorkx_graph(i)
+    # #     hcatnetwork.draw.draw_simple_centerlines_graph_2d(graph, backend="networkx")
+    # #     generate_graph_activation_map(graph, NODE_ATTS, EDGE_ATTS, model, backend='networkx')
+
+    # # # Plot ROC curve
+    # # plt.figure()
+    # # plt.plot(fpr, tpr, color='darkorange', lw=2, label='ROC curve (area = %0.2f)' % roc_auc)
+    # # plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
+    # # plt.xlim([0.0, 1.0])
+    # # plt.ylim([0.0, 1.05])
+    # # plt.xlabel('False Positive Rate')
+    # # plt.ylabel('True Positive Rate')
+    # # plt.title('Receiver Operating Characteristic')
+    # # plt.legend(loc="lower right")
+    # # plt.show()
     

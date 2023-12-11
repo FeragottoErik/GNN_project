@@ -164,6 +164,7 @@ class ArteryGraphDataset(Dataset): #it is not an InMemoryDataset because it is n
         return pyGeo_Data
 
 
+
 class TestArteryGraphDataset(unittest.TestCase):
     #TODO: correct the tests to match the new dataset structure
     def setUp(self):
@@ -191,9 +192,10 @@ class TestArteryGraphDataset(unittest.TestCase):
         edge_index = self.dataset._get_edge_index_by_graph(0)
         self.assertEqual(edge_index.shape, torch.Size([2, edge_index.shape[1]]))
     
-    def test_get_row_netwrorkx_graph(self):
+    def test_get_raw_netwrorkx_graph(self):
         g = self.dataset.get_row_netwrorkx_graph(0)
         self.assertEqual(g.grap)
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -22,6 +22,36 @@ import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 from hcatnetwork.draw.draw import SimpleCenterlineGraphInteractiveDrawer
 
+def find_connected_nodes(graph: nx.Graph, node: str) -> List[str]:
+    """Uses breadth-first search to find all the nodes that are connected to the selected node in one of the 3 directions of the 3 connected edges to intersection node
+
+    Args:
+        graph (nx.Graph): the graph to search in
+        node (str): the selected node
+
+    Returns:
+        List[str]: a list of connected nodes
+    """
+    neighs = list(graph.neighbors(node)) #list of the 3 connected nodes to the intersection node
+    branches_list=[]
+    for i in range(len(neighs)):
+        connected_nodes = []
+        queue = [neighs[i]]
+        visited = set()
+
+        while queue:
+            current_node = queue.pop(0)
+            if current_node==node:
+                pass #skip the intersection node to not explore in that direction
+            elif current_node not in visited:
+                visited.add(current_node)
+                neighbors = list(graph.neighbors(current_node))
+                connected_nodes.extend(neighbors)
+                queue.extend(neighbors)
+        branches_list.append(connected_nodes)
+
+    return branches_list
+
 def get_processed_graphs_names_and_write_reference_txt(folder_path='/home/erikfer/GNN_project/DATA/SPLITTED_ARTERIES_Normalized/processed',\
                                                         root='/home/erikfer/GNN_project/DATA/SPLITTED_ARTERIES_Normalized/'):
     """This function enables to read the content of the folder processed of root folder of dataset
