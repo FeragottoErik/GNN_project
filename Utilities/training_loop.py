@@ -117,8 +117,8 @@ if __name__ == "__main__":
     # Set up the dataset
     dataset = ArteryGraphDataset(root=ROOT, ann_file='graphs_annotation.json', node_atts=NODE_ATTS, edge_atts=EDGE_ATTS, augment=0.9)
     #get the model
-    MODEL = GATcustom(dataset.num_node_features, 32, 2, 3, dropout=0.25)
-    #MODEL = GNNStack(dataset.num_node_features, 32, dataset.num_classes,  task='graph')
+    #MODEL = GATcustom(dataset.num_node_features, 32, 2, 3, dropout=0.25)
+    MODEL = GNNStack(dataset.num_node_features, 32, dataset.num_classes,  task='graph')
     
     #print length of the node features of the dataset
     if VERBOSE:
@@ -159,7 +159,6 @@ if __name__ == "__main__":
 
     # Initialize the model
     task='graph'
-    #model = GNNStack(dataset.num_node_features, 32, dataset.num_classes,  task=task)
     model = MODEL
     # Define the loss function and optimizer
     criterion = nn.CrossEntropyLoss()

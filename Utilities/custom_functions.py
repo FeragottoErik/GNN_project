@@ -251,6 +251,8 @@ def make_ostia_origin_and_normalize(side_graph, normalize=True):
 
     return side_graph
 
+
+#TODO: plot with scale -1,1 and standard
 def test_make_ostia_origin_and_normalize():
     # Create a test graph
     side_graph = nx.Graph()
