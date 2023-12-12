@@ -125,12 +125,15 @@ if __name__ == "__main__":
     #get the model
     #MODEL = GATcustom(dataset.num_node_features, 32, 2, 3, dropout=0.25)
     MODEL = GNNStack(dataset.num_node_features, 32, dataset.num_classes,  task='graph')
+
     
     #print length of the node features of the dataset
     if VERBOSE:
         print(f"Number of node features: {dataset.num_node_features}")
         print(f"Number of classes: {dataset.num_classes}")
         print("Creating subsets...")
+        total_params = sum(p.numel() for p in MODEL.parameters())
+        print(f"Total number of parameters: {total_params}, for model: {MODEL.__class__.__name__}")
     #randomly select the 80% of the samples of dataset to train, the 10% to validate and the 10% to test without repetition
     train_size = int(len(dataset)*0.8)
     val_size = int(len(dataset)*0.1)
@@ -211,6 +214,10 @@ if __name__ == "__main__":
     # #     y_scores.extend(pred.tolist())
     # # y_scores = np.array(y_scores)
     # # y_true = np.array(y_true)
+
+    inference_time = compute_inference_time(model, test_loader)
+    if VERBOSE:
+        print(f"Average Inference time: {inference_time[0]} +- {inference_time[1]}")
 
     # # fpr, tpr, thresholds = roc_curve(y_true, y_scores)
     # # roc_auc = auc(fpr, tpr)

@@ -6,6 +6,7 @@ from collections import defaultdict
 from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 import json
 import numpy as np
+import random
 
 import scipy.sparse
 import torch
@@ -22,12 +23,116 @@ import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 from hcatnetwork.draw.draw import SimpleCenterlineGraphInteractiveDrawer
 
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.interpolate import CubicSpline
+import warnings
+import time
+import itertools
+
+def generate_points_on_sphere(start_point, max_dist, num_points=100):
+    phi = np.linspace(0, np.pi, num_points)
+    theta = np.linspace(0, 2 * np.pi, num_points)
+    phi, theta = np.meshgrid(phi, theta)
+
+    x = start_point[0] + max_dist * np.sin(phi) * np.cos(theta)
+    y = start_point[1] + max_dist * np.sin(phi) * np.sin(theta)
+    z = start_point[2] + max_dist * np.cos(phi)
+
+    points_on_sphere = np.column_stack((x.flatten(), y.flatten(), z.flatten()))
+    
+    return points_on_sphere
+
+
+def compute_inference_time(model, test_loader, num_iter=100):
+    """Computes the inference time of a model on a given dataset when running on CPU if CUDA not available"""
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    model = model.to(device)
+    model.eval()
+    init_time = time.time()
+    times = []
+    for i, data in zip(range(num_iter), itertools.cycle(test_loader)): #allows to cycle over the test_loader
+        if i == num_iter:
+            break
+        data = data.to(device)
+        with torch.no_grad():
+            time_one = time.time()
+            model(data)
+            time_two = time.time()
+            times.append(time_two - time_one)
+    end_time = time.time()
+    inference_time = (end_time - init_time) / (num_iter *int(data.batch)) #compute average inference time per graph, batch size is the number of graphs in the batch
+    #compute standard deviation of inference times
+    std = np.std(times)
+    return tuple(inference_time, std)
+
+def generate_fake_vessel(start_point, direction, edge_distance: float, length: float | str = 'random', num_branches=2):
+    """Generates a fake vessel with a given direction, length and number of branches
+    
+    Args:
+        start_point (list): the starting point of the vessel
+        direction (list): the direction of the vessel
+        length (float): the length of the vessel in mm, if 'random' the length is randomly generated between euclidean distance between
+            start and direction and the emi-circumference having diameter equalt to abs(start-direction). Defaults to 'random'.
+        num_branches (int, optional): the number of branches to generate. Defaults to 2.
+        
+    Returns:
+        np.array: the generated points"""
+    # Check input
+    assert len(start_point) == 3, f"Expected start_point to be a list of 3 elements, got {start_point}"
+    assert len(direction) == 3, f"Expected direction to be a list of 3 elements, got {direction}"
+    if length != 'random':
+        assert isinstance(length, float), f"Expected length to be a float or 'random', got {length}"
+
+    if edge_distance is not None:
+        assert isinstance(edge_distance, float), f"Expected edge_distance to be a float, got {edge_distance}"
+        assert edge_distance >= 0, f"Expected edge_distance to be positive, got {edge_distance}"
+
+    #check if euclidean distance betweeen startpoint and direction is equal or less than the length
+    if isinstance(length, float):
+        assert np.linalg.norm(start_point-direction) >= length, f"Expected the euclidean distance between start_point and direction to be equal or grater than the length, got {np.linalg.norm(direction)}"
+    else:
+        assert length=='random', f"Expected length to be a float or 'random', got {length}"
+        minimum = np.linalg.norm(start_point-direction)
+        maximum = np.pi*np.linalg.norm(start_point-direction)/2 #maximum length is the semi-circumference having diameter equal to the euclidean distance between start and direction
+        length = np.random.uniform(minimum, maximum)
+
+    length = float((length//edge_distance)*edge_distance) #round the length to the closest multiple of edge_distance
+    num_points = int(length // edge_distance) + 1 #number of points to generate
+    
+    # Generate points along the main vessel using a spline function
+    t = np.linspace(0, 1, num_points)
+    x = start_point[0] + direction[0] * t * length
+    y = start_point[1] + direction[1] * t * length
+    z = start_point[2] + direction[2] * t * length
+
+    # Add branching points
+    #np.random.seed(42)  # Set seed for reproducibility TODO: remove seed
+
+    # pick two random indexs that lie in the middle of the vessel so that the branches are not too close to the start or end
+    # in particular that are not in the first 10% and last 10% of the vessel
+    branch_points = np.sort(np.random.randint(num_points // 10, 9 * num_points // 10, size=num_branches))
+
+    x = np.insert(x, branch_points, x[branch_points])
+    y = np.insert(y, branch_points, y[branch_points])
+    z = np.insert(z, branch_points, z[branch_points])
+
+    # Use cubic spline to interpolate the points
+    spline = CubicSpline(np.arange(len(x)), np.column_stack((x, y, z)), axis=0, bc_type='clamped')
+
+    # Generate finer points along the spline for a smooth curve
+    t_fine = np.linspace(0, len(x) - 1, 10 * (len(x) - 1))
+    points_fine = spline(t_fine)
+
+    return points_fine
+
+
 def find_connected_nodes(graph: nx.Graph, node: str) -> List[str]:
     """Uses breadth-first search to find all the nodes that are connected to the selected node in one of the 3 directions of the 3 connected edges to intersection node
 
     Args:
         graph (nx.Graph): the graph to search in
-        node (str): the selected node
+        node (str): the selected intersection node with degree 3 (or more if the graph is not a tree)
 
     Returns:
         List[str]: a list of connected nodes

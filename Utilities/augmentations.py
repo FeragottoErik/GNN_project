@@ -5,11 +5,12 @@ import json
 import hcatnetwork
 import random
 import warnings
-from Utilities.custom_functions import get_subgraph_from_nbunch, find_connected_nodes
+from Utilities.custom_functions import get_subgraph_from_nbunch, find_connected_nodes, generate_fake_vessel, generate_points_on_sphere
 from hcatnetwork.node import ArteryNodeTopology
 from HearticDatasetManager.affine import get_affine_3d_rotation_around_vector
 from HearticDatasetManager.affine import apply_affine_3d
 from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
+import matplotlib.pyplot as plt
 
 def apply_augmentation_to_graph(graph: nx.Graph, augmentation: list[str], prob=0.5, n_changes=1,**kwargs):
     """Applies the specified augmentation to the given graph and returns the augmented graph.
@@ -504,10 +505,137 @@ def trim_graph_random_branch(g: nx.Graph) -> nx.Graph:
 
     return subgraph
 
+def add_graph_random_branch(g: nx.Graph) -> nx.Graph:
+    """Adds a random branch to the graph (i.e. adds a random number of nodes and edges to the graph)
+
+    Args:
+        g (nx.Graph): the graph to augment"""
+    
+    #select a random node with degree equal to 2 and far at least 15 nodes from the closest endpoint
+    nodes = [n for n in g.nodes if g.degree[n] == 2]
+    nodes = [n for n in nodes if len(nx.shortest_path(g, n, target=None)) > 15] #the node must be far at least 15 nodes from the closest endpoint
+    node = random.choice(nodes)
+    #check if the node attribute topology is 'SEGMENT'
+    try:
+        assert g.nodes[node]['topology'].name == 'SEGMENT', "The node selected is not a segment"
+    except:
+        assert g.nodes[node]['topology'] == 'SEGMENT', "The node selected is not a segment"
+
+    xyz_start = np.array([g.nodes[node]['x'], g.nodes[node]['y'], g.nodes[node]['z']], dtype=np.float32)
+    r_start = g.nodes[node]['r'] #the radius at the given node
+    side_start = g.nodes[node]['side'] #the side at the given node
+    
+    endpoints = [n for n in g.nodes if g.degree[n] == 1]
+    endpoint = random.choice(endpoints)
+
+    r_endpoint = g.nodes[endpoint]['r'] #the radius at the endpoint
+
+    #find minimal distance between nodes in the graph edges
+    min_dist_nodes=1000
+    for i, (u, v, feat_dict) in enumerate(g.edges(data=True)):
+        weight = g[u][v]['weight']
+        if weight < min_dist_nodes:
+            min_dist_nodes=weight
+
+    #find, on the surface of a sferical coordinates neighborhood of the node, of radius equal to 10 times the min_dist, a point that is the most far apart from onther nodes of the graph
+    #the point is the starting point of the new branch
+
+    max_dist = 45*min_dist_nodes
+    #create a list of all the nodes coordinates that are at maximum at a distance of max_dist from the node of xyz_start coordinates
+    xyz_points = list()
+    for i, (name, feat_dict) in enumerate(g.nodes(data=True)):
+        xyz_coord=np.array([feat_dict['x'], feat_dict['y'], feat_dict['z']], dtype=np.float32)
+        if np.linalg.norm(xyz_coord-xyz_start) <= max_dist:
+            xyz_points.append(xyz_coord)
+    #generate a list of 100 points evenly distributed on the surface of a sphere of radius max_dist centered in xyz_start
+    xyz_points_on_sphere = generate_points_on_sphere(xyz_start, max_dist, 100)
+
+    # # plot the points which have shape (10000,3) in a 3D plot
+    # fig = plt.figure()
+    # ax = fig.add_subplot(projection='3d')
+    # ax.scatter(xyz_points_on_sphere[:,0], xyz_points_on_sphere[:,1], xyz_points_on_sphere[:,2])
+    # ax.scatter(xyz_start[0], xyz_start[1], xyz_start[2], c='r')
+    # plt.show()
+
+    #select the point of xyz_points_on_sphere that is the most far apart from the other nodes of the graph in the list xyz_points
+    max_dist=0
+    for xyz_point in xyz_points_on_sphere:
+        dist=0
+        for xyz_point_2 in xyz_points:
+            dist += np.linalg.norm(xyz_point-xyz_point_2)
+        if dist > max_dist:
+            max_dist=dist
+            xyz_end = xyz_point
+
+    xyz_graph_points = np.zeros((len(g.nodes), 3), dtype=np.float32)
+    for i, (name, feat_dict) in enumerate(g.nodes(data=True)):
+        xyz_graph_points[i, 0] = float(feat_dict['x'])
+        xyz_graph_points[i, 1] = float(feat_dict['y'])
+        xyz_graph_points[i, 2] = float(feat_dict['z'])
+
+    # # plot the points which have shape (10000,3) in a 3D plot
+    fig = plt.figure()
+    ax = fig.add_subplot(projection='3d')
+    ax.scatter(xyz_graph_points[:,0], xyz_graph_points[:,1], xyz_graph_points[:,2])
+    ax.scatter(xyz_start[0], xyz_start[1], xyz_start[2], c='r')
+    ax.scatter(xyz_end[0], xyz_end[1], xyz_end[2], c='r')
+    plt.show()
+
+    #create the vessel
+    vessel =  generate_fake_vessel(xyz_start, xyz_end, min_dist_nodes, num_branches=5)
+    #get ridd of the first node of the vessel since it is the same as the node of the graph that has been selected
+    vessel = vessel[1:]
+    num_nodes = len(vessel)
+    #generate a list of radiuses for the nodes of the vessel from r_start to r_endpoint in a decreasing way
+    r_vessel = np.linspace(r_start, r_endpoint, num_nodes)
+    #add the nodes and edges of the vessel to the graph
+    last_node_name = node
+    for i, xyz_coord in enumerate(vessel):
+        index=0
+        while True:
+            new_node_name = str(len(g.nodes)+index)
+            if new_node_name not in g.nodes:
+                break
+            else:
+                index+=1
+
+        g.add_node(new_node_name, x=float(xyz_coord[0]), y=float(xyz_coord[1]), z=float(xyz_coord[2]), r=r_vessel[i], topology=ArteryNodeTopology.SEGMENT, t=float(0), side=side_start)
+        #find euclidean distance between last_node_name and new_node_name
+        u_xyz_coord=np.array([g.nodes[last_node_name]['x'], g.nodes[last_node_name]['y'], g.nodes[last_node_name]['z']], dtype=np.float32)
+        v_xyz_coord=np.array([g.nodes[new_node_name]['x'], g.nodes[new_node_name]['y'], g.nodes[new_node_name]['z']], dtype=np.float32)
+        dist = float(np.linalg.norm(u_xyz_coord-v_xyz_coord))
+        
+        g.add_edge(new_node_name, last_node_name, weight=dist, euclidean_distance=dist)
+        last_node_name = new_node_name
+
+    #change the topology of the last node of the added vessel
+    g.nodes[last_node_name]['topology'] = ArteryNodeTopology.ENDPOINT
+    #plot all points of the graph in 3D
+    xyz_graph_points = np.zeros((len(g.nodes), 3), dtype=np.float32)
+    for i, (name, feat_dict) in enumerate(g.nodes(data=True)):
+        xyz_graph_points[i, 0] = float(feat_dict['x'])
+        xyz_graph_points[i, 1] = float(feat_dict['y'])
+        xyz_graph_points[i, 2] = float(feat_dict['z'])
+
+    # # plot the points which have shape (10000,3) in a 3D plot
+    fig = plt.figure()
+    ax = fig.add_subplot(projection='3d')
+    ax.scatter(xyz_graph_points[:,0], xyz_graph_points[:,1], xyz_graph_points[:,2])
+    ax.scatter(xyz_start[0], xyz_start[1], xyz_start[2], c='r')
+    ax.scatter(xyz_end[0], xyz_end[1], xyz_end[2], c='r')
+    plt.show()
+
+    return g
+
 if __name__ == "__main__":
     # Set up the dataset
     #dataset = ArteryGraphDataset(root='/home/erikfer/GNN_project/DATA/SPLITTED_ARTERIES_DATA/', ann_file='graphs_annotation.json')
     # Split the dataset into training and test sets with 80-20 splitting
+    #set seeds for reproducibility
+    seed = 42
+    np.random.seed(seed)
+    random.seed(seed)
+
     folder='/home/erikfer/GNN_project/DATA/SPLITTED_ARTERIES_Normalized/'
     with open(os.path.join(folder, 'raw/graphs_annotation.json'), "r") as json_file:
         data = json.load(json_file)
@@ -521,10 +649,25 @@ if __name__ == "__main__":
                                       output_type=hcatnetwork.graph.SimpleCenterlineGraph)
         hcatnetwork.draw.draw_simple_centerlines_graph_2d(g, backend="networkx")
         
-        aug_graph = trim_graph_random_branch(g)
+        aug_graph1 = trim_graph_random_branch(g)
+        hcatnetwork.draw.draw_simple_centerlines_graph_2d(aug_graph1, backend="networkx")
         #hcatnetwork.draw.draw_simple_centerlines_graph_2d(aug_graph, backend="networkx")
 
-        #aug_graph= random_graph_portion_selection(aug_graph, 'random', 'OSTIUM')
+        aug_graph2= random_graph_portion_selection(g, 'random', 'OSTIUM')
+        hcatnetwork.draw.draw_simple_centerlines_graph_2d(aug_graph2, backend="networkx")
+
+        aug_graph3 = random_noise_on_node_position(g)
+        hcatnetwork.draw.draw_simple_centerlines_graph_2d(aug_graph3, backend="networkx")
+
+        graph = hcatnetwork.io.load_graph(file_path=os.path.join(folder, file_name),
+                                      output_type=hcatnetwork.graph.SimpleCenterlineGraph)
+
+        aug_graph4 = random_graph_affine_transformation(graph, 'OSTIUM')
+        hcatnetwork.draw.draw_simple_centerlines_graph_2d(aug_graph4, backend="networkx")
         # aug_graph = random_node_addition(aug_graph, 1)
-        hcatnetwork.draw.draw_simple_centerlines_graph_2d(aug_graph, backend="networkx")
+        graph = hcatnetwork.io.load_graph(file_path=os.path.join(folder, file_name),
+                                      output_type=hcatnetwork.graph.SimpleCenterlineGraph)
+
+        aug_graph5 = add_graph_random_branch(graph)
+        hcatnetwork.draw.draw_simple_centerlines_graph_2d(aug_graph5, backend="networkx")
     #print(max(max_dist_from_ostium), min(max_dist_from_ostium))
