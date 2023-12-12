@@ -20,6 +20,7 @@ import copy
 import hcatnetwork
 from torch_geometric.nn.models.basic_gnn import GAT 
 from Utilities.augmentations import random_graph_portion_selection, trim_graph_random_branch, add_graph_random_branch
+import sys
 
 
 def train_model(model, train_dataset, val_dataset, optimizer, writer=SummaryWriter(), batch_size=4, num_epochs=10):
@@ -37,8 +38,8 @@ def train_model(model, train_dataset, val_dataset, optimizer, writer=SummaryWrit
             total_loss = 0
             model.train()
             for i, batch in enumerate(train_loader):
-                if round(i*batch.batch/len(train_loader)*100, 2) % 10 == 0: #printing info each 10% of the training in every epoch
-                    print(round(i*batch.batch/len(train_loader)*100, 2), '%', end='\r')
+                # if round(int(i*batch.batch)/len(train_loader)*100, 2) % 10 == 0: #printing info each 10% of the training in every epoch
+                #     print(round(int(i*batch.batch)/len(train_loader)*100, 2), '%', end='\r')
                 optimizer.zero_grad()
                 _, pred = model(batch)
                 label = batch.y
@@ -53,13 +54,14 @@ def train_model(model, train_dataset, val_dataset, optimizer, writer=SummaryWrit
             if epoch % 1 == 0:
                 val_acc, val_f1, val_rec, val_prec = test(val_loader, model)
                 #allows to save the best model based on validation accuracy
-                if val_acc > best_val_acc:
+                if val_acc >= best_val_acc: 
                     best_val_acc = val_acc
                     best_model_wts = copy.deepcopy(model.state_dict())
                 val_acc_list.append(val_acc)
                 val_f1_list.append(val_f1)
                 val_rec_list.append(val_rec)
                 val_prec_list.append(val_prec)
+                print('\n\n')
                 print("Epoch {}. Loss: {:.4f}. Val accuracy: {:.4f}".format(
                     epoch, total_loss, val_acc))
                 writer.add_scalar("Val accuracy", val_acc, epoch)
@@ -116,19 +118,24 @@ if __name__ == "__main__":
     #set random python seed
     random.seed(1)
 
-
     VERBOSE = True
     ROOT = '/home/erikfer/GNN_project/DATA/SPLITTED_ARTERIES_Normalized/'
     SAVE_PLOTS_FOLDER= '/home/erikfer/GNN_project/PLOTS/run_12_12/'
+    #check if save plots folder exists, otherwise create it
+    if not os.path.exists(SAVE_PLOTS_FOLDER):
+        os.makedirs(SAVE_PLOTS_FOLDER)
     NODE_ATTS = ['x', 'y', 'z', "topology"]
     EDGE_ATTS = ['weight']
+
+    #define 2 files as output for the print function and the error function
+    sys.stdout = open(os.path.join(SAVE_PLOTS_FOLDER, 'output.txt'), 'w')
+    sys.stderr = open(os.path.join(SAVE_PLOTS_FOLDER, 'error.txt'), 'w')
     # Set up the dataset
     dataset = ArteryGraphDataset(root=ROOT, ann_file='graphs_annotation.json', node_atts=NODE_ATTS, edge_atts=EDGE_ATTS, augment=0.9)
     #get the model
-    #MODEL = GATcustom(dataset.num_node_features, 32, 2, 3, dropout=0.25)
-    MODEL = GNNStack(dataset.num_node_features, 32, dataset.num_classes,  task='graph')
+    #MODEL = GATcustom(dataset.num_node_features, 32, 2, 3, dropout=0.25) #its the GAT network
+    MODEL = GNNStack(dataset.num_node_features, 32, dataset.num_classes,  task='graph') #its the GIN network
 
-    
     #print length of the node features of the dataset
     if VERBOSE:
         print(f"Number of node features: {dataset.num_node_features}")
@@ -196,7 +203,7 @@ if __name__ == "__main__":
     writer = SummaryWriter()
 
     if VERBOSE:
-        print("Starting training...")
+        print("\nStarting training...")
 
     last_model, best_model, train_loss, val_acc, val_f1, val_rec, val_prec = train_model(model, train_dataset=train_dataset, \
                                                                                          val_dataset=val_dataset, \
@@ -221,7 +228,7 @@ if __name__ == "__main__":
 
     inference_time = compute_inference_time(model, test_loader)
     if VERBOSE:
-        print(f"Average Inference time: {inference_time[0]} +- {inference_time[1]}")
+        print(f"\nAverage Inference time: {inference_time[0]} +- {inference_time[1]}")
 
     """Evaluate the model on the test set, with no augmentation"""
     y_true = []
@@ -244,7 +251,7 @@ if __name__ == "__main__":
     y_true = np.array(y_true)
 
     if VERBOSE:
-        print(f"Accuracy on test set: {accuracy}")
+        print(f"\nAccuracy on test set: {accuracy}")
         print(f"F1 score on test set: {f1_score(y_true, y_scores, average='macro')}")
         print(f"Recall on test set: {recall_score(y_true, y_scores, average='macro')}")
         print(f"Precision on test set: {precision_score(y_true, y_scores, average='macro')}")
@@ -294,6 +301,7 @@ if __name__ == "__main__":
             correct += pred.eq(label).sum().item()
     total = len(test_indices)
     accuracy = correct / total
+    print(f"\nAccuracy on test set with random branches trimmed: {accuracy}")
 
     """Evaluate model capability to classify graphs when random branches are ADDED to the graph"""
     correct=0
@@ -313,9 +321,8 @@ if __name__ == "__main__":
             correct += pred.eq(label).sum().item()
     total = len(test_indices)
     accuracy = correct / total
+    print(f"\nAccuracy on test set with random branches added: {accuracy}")
 
-
-    
     """Evaluate the model capability to classify the graph with different graph portions selected thanks to the random_graph_portion_selection function
     with a number of nodes that varies from 10 to 600 with a step of 10. Note that if 600 > max_branch_lenght the function will return the whole graph
     The grater brench in the whole dataset is 576 nodes long."""
@@ -342,6 +349,7 @@ if __name__ == "__main__":
         total = len(test_indices)
         accuracy = correct / total
         acc_hist.append(accuracy)
+    print(f"\nAccuracy on test set with random graph portions selected: {acc_hist}")
 
     # Plot accuracy vs graph portion
     plt.figure(figsize=(8, 6))  # Set the figure size
