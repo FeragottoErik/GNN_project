@@ -414,7 +414,7 @@ def test_make_ostia_origin_and_normalize():
     print('Test passed')
 
 
-def draw_graph_activation_map(graph: networkx.Graph | SimpleCenterlineGraph, activation: np.array, backend: str = "networkx"):
+def draw_graph_activation_map(graph: networkx.Graph | SimpleCenterlineGraph, activation: np.array, backend: str = "networkx", save_path: str = None):
     """Draws the Coronary Artery tree centerlines in an interactive way where the color-code of the nodes is given by the amount
     of activation associated to that node. The activation is given by the model and is a value between 0 and 1.
     
@@ -507,7 +507,16 @@ def draw_graph_activation_map(graph: networkx.Graph | SimpleCenterlineGraph, act
     # Rescale axes view to content
     ax.autoscale_view()
     plt.tight_layout()
-    plt.show()
+    if save_path is not None:
+        try:
+            plt.savefig(save_path)
+        except:
+            warnings.warn(f"Could not save figure to {save_path}.")
+            plt.show()
+    else:
+        plt.show()
+
+    return
 
 
 #given an array of shape [n,1], create function that maps the values to a color proportionally to the value from the min to the max
@@ -515,7 +524,12 @@ def get_color_from_array(array: np.ndarray, colormap: matplotlib.colors.LinearSe
     """Given an array of shape [n,1], create function that maps the values to a color proportionally to the value from the min to the max"""
     array = np.array(array)
     array = array.reshape(-1, 1)
-    norm = matplotlib.colors.Normalize(vmin=np.min(array), vmax=np.max(array))
+    #find max and min value at 10-th and 90-th percentile to prevent saturation of the colormap
+    #find the min value that falls in the 90-th percentile
+    min_value = np.percentile(array, 10)
+    #find the max value that falls in the 90-th percentile
+    max_value = np.percentile(array, 90)
+    norm = matplotlib.colors.Normalize(vmin=min_value, vmax=max_value)
     color = colormap(norm(array))
 
     return color

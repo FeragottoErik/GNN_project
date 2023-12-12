@@ -550,13 +550,6 @@ def add_graph_random_branch(g: nx.Graph) -> nx.Graph:
     #generate a list of 100 points evenly distributed on the surface of a sphere of radius max_dist centered in xyz_start
     xyz_points_on_sphere = generate_points_on_sphere(xyz_start, max_dist, 100)
 
-    # # plot the points which have shape (10000,3) in a 3D plot
-    # fig = plt.figure()
-    # ax = fig.add_subplot(projection='3d')
-    # ax.scatter(xyz_points_on_sphere[:,0], xyz_points_on_sphere[:,1], xyz_points_on_sphere[:,2])
-    # ax.scatter(xyz_start[0], xyz_start[1], xyz_start[2], c='r')
-    # plt.show()
-
     #select the point of xyz_points_on_sphere that is the most far apart from the other nodes of the graph in the list xyz_points
     max_dist=0
     for xyz_point in xyz_points_on_sphere:
@@ -566,20 +559,6 @@ def add_graph_random_branch(g: nx.Graph) -> nx.Graph:
         if dist > max_dist:
             max_dist=dist
             xyz_end = xyz_point
-
-    xyz_graph_points = np.zeros((len(g.nodes), 3), dtype=np.float32)
-    for i, (name, feat_dict) in enumerate(g.nodes(data=True)):
-        xyz_graph_points[i, 0] = float(feat_dict['x'])
-        xyz_graph_points[i, 1] = float(feat_dict['y'])
-        xyz_graph_points[i, 2] = float(feat_dict['z'])
-
-    # # plot the points which have shape (10000,3) in a 3D plot
-    fig = plt.figure()
-    ax = fig.add_subplot(projection='3d')
-    ax.scatter(xyz_graph_points[:,0], xyz_graph_points[:,1], xyz_graph_points[:,2])
-    ax.scatter(xyz_start[0], xyz_start[1], xyz_start[2], c='r')
-    ax.scatter(xyz_end[0], xyz_end[1], xyz_end[2], c='r')
-    plt.show()
 
     #create the vessel
     vessel =  generate_fake_vessel(xyz_start, xyz_end, min_dist_nodes, num_branches=5)
@@ -617,13 +596,13 @@ def add_graph_random_branch(g: nx.Graph) -> nx.Graph:
         xyz_graph_points[i, 1] = float(feat_dict['y'])
         xyz_graph_points[i, 2] = float(feat_dict['z'])
 
-    # # plot the points which have shape (10000,3) in a 3D plot
-    fig = plt.figure()
-    ax = fig.add_subplot(projection='3d')
-    ax.scatter(xyz_graph_points[:,0], xyz_graph_points[:,1], xyz_graph_points[:,2])
-    ax.scatter(xyz_start[0], xyz_start[1], xyz_start[2], c='r')
-    ax.scatter(xyz_end[0], xyz_end[1], xyz_end[2], c='r')
-    plt.show()
+    # # plot the points of the graph in a 3D plot
+    # fig = plt.figure()
+    # ax = fig.add_subplot(projection='3d')
+    # ax.scatter(xyz_graph_points[:,0], xyz_graph_points[:,1], xyz_graph_points[:,2])
+    # ax.scatter(xyz_start[0], xyz_start[1], xyz_start[2], c='r')
+    # ax.scatter(xyz_end[0], xyz_end[1], xyz_end[2], c='r')
+    # plt.show()
 
     return g
 
