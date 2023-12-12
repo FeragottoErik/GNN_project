@@ -21,6 +21,7 @@ import hcatnetwork
 from torch_geometric.nn.models.basic_gnn import GAT 
 from Utilities.augmentations import random_graph_portion_selection, trim_graph_random_branch, add_graph_random_branch
 import sys
+from time import sleep
 
 
 def train_model(model, train_dataset, val_dataset, optimizer, writer=SummaryWriter(), batch_size=4, num_epochs=10):
@@ -112,18 +113,20 @@ def test(loader, model, is_validation=False):
 
 if __name__ == "__main__":
     #set random torch seed
-    torch.manual_seed(1)
+    torch.manual_seed(2023)
     #set numpy random seed
-    np.random.seed(1)
+    np.random.seed(2023)
     #set random python seed
-    random.seed(1)
+    random.seed(2023)
 
     VERBOSE = True
     ROOT = '/home/erikfer/GNN_project/DATA/SPLITTED_ARTERIES_Normalized/'
-    SAVE_PLOTS_FOLDER= '/home/erikfer/GNN_project/PLOTS/run_12_12/'
+    SAVE_PLOTS_FOLDER= '/home/erikfer/GNN_project/PLOTS/run_12_12_seed2023/'
     #check if save plots folder exists, otherwise create it
     if not os.path.exists(SAVE_PLOTS_FOLDER):
         os.makedirs(SAVE_PLOTS_FOLDER)
+    if not os.path.exists(os.path.join(SAVE_PLOTS_FOLDER, 'activation_maps')):
+        os.makedirs(os.path.join(SAVE_PLOTS_FOLDER, 'activation_maps'))
     NODE_ATTS = ['x', 'y', 'z', "topology"]
     EDGE_ATTS = ['weight']
 
@@ -195,10 +198,10 @@ if __name__ == "__main__":
     optimizer = optim.Adam(model.parameters(), lr=0.0001)
     warmup_factor = 0.1
     warmup_epochs = 5
-    total_epochs = 30
+    total_epochs = 20
 
-    """Eventually use a scheduler for the learning rate, but actually is not needed because the learning rate is already small enough"""
-    #scheduler = optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lambda epoch: (1 - warmup_factor) * epoch / warmup_epochs if epoch < warmup_epochs else warmup_factor ** (epoch - warmup_epochs))
+    # # """Eventually use a scheduler for the learning rate, but actually is not needed because the learning rate is already small enough"""
+    # # #scheduler = optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lambda epoch: (1 - warmup_factor) * epoch / warmup_epochs if epoch < warmup_epochs else warmup_factor ** (epoch - warmup_epochs))
     
     writer = SummaryWriter()
 
@@ -208,13 +211,15 @@ if __name__ == "__main__":
     last_model, best_model, train_loss, val_acc, val_f1, val_rec, val_prec = train_model(model, train_dataset=train_dataset, \
                                                                                          val_dataset=val_dataset, \
                                                                                          optimizer=optimizer, writer=writer,\
-                                                                                         num_epochs=30)
+                                                                                         num_epochs=total_epochs)
 
 
         
     #save model as artery_model.pt
     torch.save(best_model, 'artery_model_best_val_acc.pt')
     torch.save(last_model, 'artery_model_last.pt')
+
+    #keep writing the output of the print function to the output.txt file
 
     # Compute ROC curve
     test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False)
@@ -228,7 +233,7 @@ if __name__ == "__main__":
 
     inference_time = compute_inference_time(model, test_loader)
     if VERBOSE:
-        print(f"\nAverage Inference time: {inference_time[0]} +- {inference_time[1]}")
+        print(f"\nAverage Inference time: {inference_time[0]} +- {inference_time[1]} seconds")
 
     """Evaluate the model on the test set, with no augmentation"""
     y_true = []
@@ -247,6 +252,7 @@ if __name__ == "__main__":
         y_scores.extend(pred.tolist())
     total = len(test_loader.dataset)
     accuracy = correct / total
+    not_aug_test_acc = accuracy
     y_scores = np.array(y_scores)
     y_true = np.array(y_true)
 
@@ -281,7 +287,9 @@ if __name__ == "__main__":
     for i in test_indices:
         graph = dataset.get_raw_netwrorkx_graph(i)
         #hcatnetwork.draw.draw_simple_centerlines_graph_2d(graph, backend="networkx")
+        sleep(0.5) #sleep to allow the plot to be saved
         generate_graph_activation_map(graph, NODE_ATTS, EDGE_ATTS, model, backend='networkx', save_path=os.path.join(SAVE_PLOTS_FOLDER, 'activation_maps', f'activation_map_{i}.png'))
+        plt.close()
 
     """Evaluate model capability to classify graphs when random branches are trimmed from the graph"""
     correct=0
@@ -330,8 +338,8 @@ if __name__ == "__main__":
     acc_hist = []  
     for j in range(10, 600, 10):
         correct = 0
-        #print the progression percentage of the loop
-        print(round(j/600*100, 2), '%', end='\r')
+        # print the progression percentage of the loop
+        #print(round(j/600*100, 2), '%', end='\r')
         for i in test_indices:
             with torch.no_grad():
                 #get the graph from the test dataset
@@ -349,11 +357,16 @@ if __name__ == "__main__":
         total = len(test_indices)
         accuracy = correct / total
         acc_hist.append(accuracy)
-    print(f"\nAccuracy on test set with random graph portions selected: {acc_hist}")
+        #if the accuracy is equal to not_aug_test_acc in the two last iterations, then stop the loop
+        if j > 20:
+            if acc_hist[-1] == acc_hist[-2] == not_aug_test_acc:
+                break
+
+    #print(f"\nAccuracy on test set with random graph portions selected: {acc_hist}")
 
     # Plot accuracy vs graph portion
     plt.figure(figsize=(8, 6))  # Set the figure size
-    plt.plot(range(10, 600, 10), acc_hist, marker='o', linestyle='-', color='b')  # Add markers, linestyle, and color
+    plt.plot(range(10, (len(acc_hist)*10 + 10), 10), acc_hist, marker='o', linestyle='-', color='b')  # Add markers, linestyle, and color
     plt.xlabel('Graph Portion', fontsize=12)  # Set x-axis label and font size
     plt.ylabel('Accuracy', fontsize=12)  # Set y-axis label and font size
     plt.title('Accuracy vs Graph Portion', fontsize=14)  # Set plot title and font size

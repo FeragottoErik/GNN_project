@@ -471,7 +471,12 @@ def trim_graph_random_branch(g: nx.Graph) -> nx.Graph:
     Args:
         g (nx.Graph): the graph to augment"""
     #select a random node with degree greater than 2
-    node = random.choice([n for n in g.nodes if g.degree[n] > 2])
+    try:
+        node = random.choice([n for n in g.nodes if g.degree[n] > 2])
+    except:
+        warnings.warn("The graph has no nodes with degree greater than 2")
+        #hcatnetwork.draw.draw_simple_centerlines_graph_2d(g, backend="networkx")
+        return g
     #check if the node attribute topology is 'INTERSECTION'
     try:
         assert g.nodes[node]['topology'].name == 'INTERSECTION', "The node selected is not an intersection"

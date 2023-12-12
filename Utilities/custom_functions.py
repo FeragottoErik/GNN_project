@@ -61,10 +61,10 @@ def compute_inference_time(model, test_loader, num_iter=100):
             time_two = time.time()
             times.append(time_two - time_one)
     end_time = time.time()
-    inference_time = (end_time - init_time) / (num_iter *int(data.batch)) #compute average inference time per graph, batch size is the number of graphs in the batch
+    inference_time = (end_time - init_time) / (num_iter*len(data)) #compute average inference time per graph, batch size is the number of graphs in the batch
     #compute standard deviation of inference times
     std = np.std(times)
-    return tuple(inference_time, std)
+    return (inference_time, std)
 
 def generate_fake_vessel(start_point, direction, edge_distance: float, length: float | str = 'random', num_branches=2):
     """Generates a fake vessel with a given direction, length and number of branches
@@ -534,7 +534,7 @@ def get_color_from_array(array: np.ndarray, colormap: matplotlib.colors.LinearSe
 
     return color
 
-def generate_graph_activation_map(graph: nx.Graph, node_attr: list, edge_attr: list, model: any, backend: str = 'networkx'):
+def generate_graph_activation_map(graph: nx.Graph, node_attr: list, edge_attr: list, model: any, backend: str = 'networkx', save_path: str = None):
     """Plot the graph with a color-code based on the activation of the nodes given by the model
     Parameters
     ----------
@@ -560,4 +560,5 @@ def generate_graph_activation_map(graph: nx.Graph, node_attr: list, edge_attr: l
     graph_act = model.get_activation(pyGeo_data)
     #reducing to 1 dimension for feature activation
     graph_act = graph_act.view(graph_act.shape[0], -1).sum(axis=1).reshape(-1, 1).detach().numpy()
-    draw_graph_activation_map(graph, graph_act, backend=backend)
+    draw_graph_activation_map(graph, graph_act, backend=backend, save_path=save_path)
+    return
