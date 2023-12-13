@@ -566,12 +566,25 @@ def add_graph_random_branch(g: nx.Graph) -> nx.Graph:
             xyz_end = xyz_point
 
     #create the vessel
-    vessel =  generate_fake_vessel(xyz_start, xyz_end, min_dist_nodes, num_branches=5)
+    vessel =  generate_fake_vessel(xyz_start, xyz_end, min_dist_nodes)
     #get ridd of the first node of the vessel since it is the same as the node of the graph that has been selected
     vessel = vessel[1:]
     num_nodes = len(vessel)
     #generate a list of radiuses for the nodes of the vessel from r_start to r_endpoint in a decreasing way
     r_vessel = np.linspace(r_start, r_endpoint, num_nodes)
+    # xyz_graph_points = np.zeros((len(g.nodes), 3), dtype=np.float32)
+    # for i, (name, feat_dict) in enumerate(g.nodes(data=True)):
+    #     xyz_graph_points[i, 0] = float(feat_dict['x'])
+    #     xyz_graph_points[i, 1] = float(feat_dict['y'])
+    #     xyz_graph_points[i, 2] = float(feat_dict['z'])
+
+    # #plot the points of the graph in a 3D plot
+    # fig = plt.figure()
+    # ax = fig.add_subplot(projection='3d')
+    # ax.scatter(xyz_graph_points[:,0], xyz_graph_points[:,1], xyz_graph_points[:,2])
+    # ax.scatter(xyz_start[0], xyz_start[1], xyz_start[2], c='r')
+    # ax.scatter(xyz_end[0], xyz_end[1], xyz_end[2], c='r')
+    # plt.show()
     #add the nodes and edges of the vessel to the graph
     last_node_name = node
     for i, xyz_coord in enumerate(vessel):
@@ -595,13 +608,13 @@ def add_graph_random_branch(g: nx.Graph) -> nx.Graph:
     #change the topology of the last node of the added vessel
     g.nodes[last_node_name]['topology'] = ArteryNodeTopology.ENDPOINT
     #plot all points of the graph in 3D
-    xyz_graph_points = np.zeros((len(g.nodes), 3), dtype=np.float32)
-    for i, (name, feat_dict) in enumerate(g.nodes(data=True)):
-        xyz_graph_points[i, 0] = float(feat_dict['x'])
-        xyz_graph_points[i, 1] = float(feat_dict['y'])
-        xyz_graph_points[i, 2] = float(feat_dict['z'])
+    # xyz_graph_points = np.zeros((len(g.nodes), 3), dtype=np.float32)
+    # for i, (name, feat_dict) in enumerate(g.nodes(data=True)):
+    #     xyz_graph_points[i, 0] = float(feat_dict['x'])
+    #     xyz_graph_points[i, 1] = float(feat_dict['y'])
+    #     xyz_graph_points[i, 2] = float(feat_dict['z'])
 
-    # # plot the points of the graph in a 3D plot
+    # #plot the points of the graph in a 3D plot
     # fig = plt.figure()
     # ax = fig.add_subplot(projection='3d')
     # ax.scatter(xyz_graph_points[:,0], xyz_graph_points[:,1], xyz_graph_points[:,2])
@@ -631,27 +644,28 @@ if __name__ == "__main__":
         category_id= cat_id_to_name[graph_raw["category_id"]]
         g = hcatnetwork.io.load_graph(file_path=os.path.join(folder, file_name),
                                       output_type=hcatnetwork.graph.SimpleCenterlineGraph)
-        hcatnetwork.draw.draw_simple_centerlines_graph_2d(g, backend="networkx")
+        # hcatnetwork.draw.draw_simple_centerlines_graph_2d(g, backend="networkx")
         
-        aug_graph1 = trim_graph_random_branch(g)
-        hcatnetwork.draw.draw_simple_centerlines_graph_2d(aug_graph1, backend="networkx")
-        #hcatnetwork.draw.draw_simple_centerlines_graph_2d(aug_graph, backend="networkx")
+        # aug_graph1 = trim_graph_random_branch(g)
+        # hcatnetwork.draw.draw_simple_centerlines_graph_2d(aug_graph1, backend="networkx")
+        # #hcatnetwork.draw.draw_simple_centerlines_graph_2d(aug_graph, backend="networkx")
 
-        aug_graph2= random_graph_portion_selection(g, 'random', 'OSTIUM')
-        hcatnetwork.draw.draw_simple_centerlines_graph_2d(aug_graph2, backend="networkx")
+        # aug_graph2= random_graph_portion_selection(g, 'random', 'OSTIUM')
+        # hcatnetwork.draw.draw_simple_centerlines_graph_2d(aug_graph2, backend="networkx")
 
-        aug_graph3 = random_noise_on_node_position(g)
-        hcatnetwork.draw.draw_simple_centerlines_graph_2d(aug_graph3, backend="networkx")
+        # aug_graph3 = random_noise_on_node_position(g)
+        # hcatnetwork.draw.draw_simple_centerlines_graph_2d(aug_graph3, backend="networkx")
 
-        graph = hcatnetwork.io.load_graph(file_path=os.path.join(folder, file_name),
-                                      output_type=hcatnetwork.graph.SimpleCenterlineGraph)
+        # graph = hcatnetwork.io.load_graph(file_path=os.path.join(folder, file_name),
+        #                               output_type=hcatnetwork.graph.SimpleCenterlineGraph)
 
-        aug_graph4 = random_graph_affine_transformation(graph, 'OSTIUM')
-        hcatnetwork.draw.draw_simple_centerlines_graph_2d(aug_graph4, backend="networkx")
-        # aug_graph = random_node_addition(aug_graph, 1)
-        graph = hcatnetwork.io.load_graph(file_path=os.path.join(folder, file_name),
-                                      output_type=hcatnetwork.graph.SimpleCenterlineGraph)
+        # aug_graph4 = random_graph_affine_transformation(graph, 'OSTIUM')
+        # hcatnetwork.draw.draw_simple_centerlines_graph_2d(aug_graph4, backend="networkx")
+        # # aug_graph = random_node_addition(aug_graph, 1)
+        # graph = hcatnetwork.io.load_graph(file_path=os.path.join(folder, file_name),
+        #                               output_type=hcatnetwork.graph.SimpleCenterlineGraph)
 
-        aug_graph5 = add_graph_random_branch(graph)
+        #hcatnetwork.draw.draw_simple_centerlines_graph_2d(g, backend="networkx")
+        aug_graph5 = add_graph_random_branch(g)
         hcatnetwork.draw.draw_simple_centerlines_graph_2d(aug_graph5, backend="networkx")
     #print(max(max_dist_from_ostium), min(max_dist_from_ostium))

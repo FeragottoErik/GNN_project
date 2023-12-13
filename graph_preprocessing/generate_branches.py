@@ -4,6 +4,11 @@ import torch.optim as optim
 from torch_geometric.data import Data
 from torch_geometric.nn import GCNConv
 
+"""Hint on how to use a Variational Autoencoder (VAE) with PyTorch Geometric (PyG) to reconstruct a graph. 
+Both to build a graph from scratch and to reconstruct a graph from a set of nodes and edges. Also it can be 
+used for synthetic data generation. 
+At current status it is not working and is intended ti be used as a starting point for further development."""
+
 # Define the VAE model
 class VAE(nn.Module):
     def __init__(self, input_dim, hidden_dim, latent_dim):

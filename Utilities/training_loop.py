@@ -11,7 +11,7 @@ from torch_geometric.nn import GAE
 import os
 from Utilities.custom_functions import generate_graph_activation_map, from_networkx, compute_inference_time
 import numpy as np
-from models.GIN import *
+from models.GNN import *
 import random
 from sklearn.metrics import f1_score, recall_score, precision_score
 from sklearn.metrics import roc_curve, auc
@@ -25,6 +25,7 @@ from time import sleep
 
 
 def train_model(model, train_dataset, val_dataset, optimizer, writer=SummaryWriter(), batch_size=4, num_epochs=10):
+    #TODO: implement early stopping
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=1, shuffle=False)
     optimizer = optimizer
@@ -136,8 +137,8 @@ if __name__ == "__main__":
     # Set up the dataset
     dataset = ArteryGraphDataset(root=ROOT, ann_file='graphs_annotation.json', node_atts=NODE_ATTS, edge_atts=EDGE_ATTS, augment=0.9)
     #get the model
-    #MODEL = GATcustom(dataset.num_node_features, 32, 2, 3, dropout=0.25) #its the GAT network
-    MODEL = GNNStack(dataset.num_node_features, 32, dataset.num_classes,  task='graph') #its the GIN network
+    MODEL = GATcustom(dataset.num_node_features, 32, 2, 3, dropout=0.25) #its the GAT network
+    #MODEL = GNNStack(dataset.num_node_features, 32, dataset.num_classes,  task='graph') #its the GIN network
 
     #print length of the node features of the dataset
     if VERBOSE:

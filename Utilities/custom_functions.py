@@ -7,6 +7,8 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 import json
 import numpy as np
 import random
+from mpl_toolkits.mplot3d import Axes3D
+from scipy.interpolate import splprep, splev
 
 import scipy.sparse
 import torch
@@ -66,7 +68,7 @@ def compute_inference_time(model, test_loader, num_iter=100):
     std = np.std(times)
     return (inference_time, std)
 
-def generate_fake_vessel(start_point, direction, edge_distance: float, length: float | str = 'random', num_branches=2):
+def generate_fake_vessel(start_point, direction, edge_distance: float):
     """Generates a fake vessel with a given direction, length and number of branches
     
     Args:
@@ -81,50 +83,107 @@ def generate_fake_vessel(start_point, direction, edge_distance: float, length: f
     # Check input
     assert len(start_point) == 3, f"Expected start_point to be a list of 3 elements, got {start_point}"
     assert len(direction) == 3, f"Expected direction to be a list of 3 elements, got {direction}"
-    if length != 'random':
-        assert isinstance(length, float), f"Expected length to be a float or 'random', got {length}"
 
     if edge_distance is not None:
         assert isinstance(edge_distance, float), f"Expected edge_distance to be a float, got {edge_distance}"
         assert edge_distance >= 0, f"Expected edge_distance to be positive, got {edge_distance}"
 
+
     #check if euclidean distance betweeen startpoint and direction is equal or less than the length
-    if isinstance(length, float):
-        assert np.linalg.norm(start_point-direction) >= length, f"Expected the euclidean distance between start_point and direction to be equal or grater than the length, got {np.linalg.norm(direction)}"
-    else:
-        assert length=='random', f"Expected length to be a float or 'random', got {length}"
-        minimum = np.linalg.norm(start_point-direction)
-        maximum = np.pi*np.linalg.norm(start_point-direction)/2 #maximum length is the semi-circumference having diameter equal to the euclidean distance between start and direction
-        length = np.random.uniform(minimum, maximum)
+    # if isinstance(length, float):
+    #     assert np.linalg.norm(start_point-direction) >= length, f"Expected the euclidean distance between start_point and direction to be equal or grater than the length, got {np.linalg.norm(direction)}"
+    # else:
+    #     assert length=='random', f"Expected length to be a float or 'random', got {length}"
+    #     minimum = np.linalg.norm(start_point-direction)
+    #     maximum = np.pi*np.linalg.norm(start_point-direction)/2 #maximum length is the semi-circumference having diameter equal to the euclidean distance between start and direction
+    #     length = np.random.uniform(minimum, maximum)
 
-    length = float((length//edge_distance)*edge_distance) #round the length to the closest multiple of edge_distance
-    num_points = int(length // edge_distance) + 1 #number of points to generate
-    
+    # length = float((length//edge_distance)*edge_distance) #round the length to the closest multiple of edge_distance
+    # num_points = int(length // edge_distance) + 1 #number of points to generate
+
+    #given the vector that connects start_point to direction, generate a vector of 1/3 of the length of the vessel that is at maximum 30 degrees rotated from the direction, with a random rotation
+    vector = direction - start_point
+    length = np.linalg.norm(vector)
+    vector = vector / np.linalg.norm(vector) #normalize the vector
+    #generate a random rotation matrix
+    theta = np.random.uniform(0, (1/6)*np.pi)
+    rotation_matrix = np.array([[np.cos(theta), -np.sin(theta), 0], [np.sin(theta), np.cos(theta), 0], [0, 0, 1]])
+    #rotate the vector
+    vector = np.matmul(rotation_matrix, vector)
+    #generate a vector of 1/3 of the length of the vessel that is at maximum 30 degrees rotated from the direction  
+    vector = vector * length/3
+
+    second_point = start_point + vector
+
+    vector2 = direction - second_point
+    vector2 = vector2 / np.linalg.norm(vector2) #normalize the vector
+    #generate a random rotation matrix
+    theta2 = np.random.uniform(0, (1/6)*np.pi)
+    rotation_matrix2 = np.array([[np.cos(theta2), -np.sin(theta2), 0], [np.sin(theta2), np.cos(theta2), 0], [0, 0, 1]])
+    #rotate the vector
+    vector2 = np.matmul(rotation_matrix2, vector2)
+    #generate a vector of 1/3 of the length of the vessel that is at maximum 30 degrees rotated from the direction
+    vector2 = vector2 * length/3
+
+    third_point = second_point + vector2
+
+    x = np.array([start_point[0], second_point[0], third_point[0], direction[0]])
+    y = np.array([start_point[1], second_point[1], third_point[1], direction[1]])
+    z = np.array([start_point[2], second_point[2], third_point[2], direction[2]])
+
     # Generate points along the main vessel using a spline function
-    t = np.linspace(0, 1, num_points)
-    x = start_point[0] + direction[0] * t * length
-    y = start_point[1] + direction[1] * t * length
-    z = start_point[2] + direction[2] * t * length
+    tck, u = splprep([x, y, z], s=0)
+    unew = np.linspace(0, 1, 1000)
+    out = splev(unew, tck)
+    #plot the spline 
+    # fig = plt.figure()
+    # ax = fig.add_subplot(111, projection='3d')
+    # ax.plot(x, y, z, 'ro')
+    # ax.plot(out[0], out[1], out[2], 'b')
+    # plt.show()
 
-    # Add branching points
-    #np.random.seed(42)  # Set seed for reproducibility TODO: remove seed
+    #compute the length of the spline 'out'
+    length_spline = 0
+    for i in range(len(out[0])-1):
+        length_spline += np.linalg.norm(np.array([out[0][i], out[1][i], out[2][i]])-np.array([out[0][i+1], out[1][i+1], out[2][i+1]]))
 
-    # pick two random indexs that lie in the middle of the vessel so that the branches are not too close to the start or end
-    # in particular that are not in the first 10% and last 10% of the vessel
-    branch_points = np.sort(np.random.randint(num_points // 10, 9 * num_points // 10, size=num_branches))
+    num_nodes = int(length_spline / edge_distance + 1)
 
-    x = np.insert(x, branch_points, x[branch_points])
-    y = np.insert(y, branch_points, y[branch_points])
-    z = np.insert(z, branch_points, z[branch_points])
+    count = len(out[0]) // num_nodes
+    points = []
+    #return a list of points 'points' that are sampled each 'count' points from the spline 'out'
+    for i in range(num_nodes):
+        points.append(np.array([out[0][i*count], out[1][i*count], out[2][i*count]]))
 
-    # Use cubic spline to interpolate the points
-    spline = CubicSpline(np.arange(len(x)), np.column_stack((x, y, z)), axis=0, bc_type='clamped')
+    #print(len(points))
+    # for i in range(num_nodes):
+    #     points.append(np.array([out[i*count][0], out[i*count][1], out[i*count][2]]))
 
-    # Generate finer points along the spline for a smooth curve
-    t_fine = np.linspace(0, len(x) - 1, 10 * (len(x) - 1))
-    points_fine = spline(t_fine)
+    # # # Generate points along the main vessel using a spline function
+    # # t = np.linspace(0, 1, num_points)
+    # # x = start_point[0] + direction[0] * t * length
+    # # y = start_point[1] + direction[1] * t * length
+    # # z = start_point[2] + direction[2] * t * length
 
-    return points_fine
+    # # # Add branching points
+    # # #np.random.seed(42)  # Set seed for reproducibility TODO: remove seed
+
+    # # # pick two random indexs that lie in the middle of the vessel so that the branches are not too close to the start or end
+    # # # in particular that are not in the first 10% and last 10% of the vessel
+    # # branch_points = np.sort(np.random.randint(num_points // 10, 9 * num_points // 10, size=num_branches))
+
+    # # x = np.insert(x, branch_points, x[branch_points])
+    # # y = np.insert(y, branch_points, y[branch_points])
+    # # z = np.insert(z, branch_points, z[branch_points])
+
+    # # # Use cubic spline to interpolate the points
+    # # spline = CubicSpline(np.arange(len(x)), np.column_stack((x, y, z)), axis=0, bc_type='clamped')
+
+    # # # Generate finer points along the spline for a smooth curve
+    # # t_fine = np.linspace(0, len(x) - 1, 10 * (len(x) - 1))
+    # # points_fine = spline(t_fine)
+
+    return points
 
 
 def find_connected_nodes(graph: nx.Graph, node: str) -> List[str]:

@@ -13,8 +13,9 @@ from torch_geometric.typing import OptTensor
 
 
 
-# Define GNN model
+# The GIN model
 class GNNStack(nn.Module):
+    """A 3 layers GNN with GIN convolution and post-message-passing readout layer for graph classification."""
     def __init__(self, input_dim, hidden_dim, output_dim, task='graph'):
         super(GNNStack, self).__init__()
         self.task = task
@@ -91,24 +92,12 @@ class GNNStack(nn.Module):
     #TODO: complete the predict function
     
 
-class GCNEncoder(torch.nn.Module):
-    def __init__(self, in_channels, out_channels):
-        super(GCNEncoder, self).__init__()
-        self.conv1 = GCNConv(in_channels, 2 * out_channels) # cached only for transductive learning
-        self.conv2 = GCNConv(2 * out_channels, out_channels) # cached only for transductive learning
-
-    def forward(self, x, edge_index):
-        x = self.conv1(x, edge_index).relu()
-        return self.conv2(x, edge_index)
-
-def compute_and_write_embeddings(writer, dataset):
-    num_features = dataset.num_features
-    out_channels = 2
-    model = GAE(GCNEncoder(num_features, out_channels))
-    #TODO: complete the autoencoder model
-    return
 
 class GATcustom(GAT):
+    """The GAT model from the pytorch geometric library, with a custom post-message-passing FC layer for graph level classification.
+    It also implements the possibility to extract embeddings after pooling operation and before the FC layer, as well as
+    the possibility to extract the activation of the last convolutional layer."""
+
     def __init__(
         self,
         in_channels: int,
