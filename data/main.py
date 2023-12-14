@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch_geometric.data import DataLoader
-from Utilities.dataset import ArteryGraphDataset
+from data.dataset import ArteryGraphDataset
 import torch_geometric.nn as pyg_nn
 import torch.nn.functional as F
 from tensorboardX import SummaryWriter
@@ -11,118 +11,44 @@ from torch_geometric.nn import GAE
 import os
 from Utilities.custom_functions import generate_graph_activation_map, from_networkx, compute_inference_time
 import numpy as np
-from models.GNN import *
+from models.GIN import *
+from models.GAT import *
 import random
 from sklearn.metrics import f1_score, recall_score, precision_score
 from sklearn.metrics import roc_curve, auc
 import matplotlib.pyplot as plt
 import copy
 import hcatnetwork
-from torch_geometric.nn.models.basic_gnn import GAT 
 from Utilities.augmentations import random_graph_portion_selection, trim_graph_random_branch, add_graph_random_branch
 import sys
 from time import sleep
-
-
-def train_model(model, train_dataset, val_dataset, optimizer, writer=SummaryWriter(), batch_size=4, num_epochs=10):
-    #TODO: implement early stopping
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-    val_loader = DataLoader(val_dataset, batch_size=1, shuffle=False)
-    optimizer = optimizer
-    train_loss = []
-    val_acc_list = []
-    val_f1_list = []
-    val_rec_list = []
-    val_prec_list = []
-    best_model_wts = copy.deepcopy(model.state_dict())
-    best_val_acc = 0.0
-    for epoch in range(num_epochs):
-            total_loss = 0
-            model.train()
-            for i, batch in enumerate(train_loader):
-                # if round(int(i*batch.batch)/len(train_loader)*100, 2) % 10 == 0: #printing info each 10% of the training in every epoch
-                #     print(round(int(i*batch.batch)/len(train_loader)*100, 2), '%', end='\r')
-                optimizer.zero_grad()
-                _, pred = model(batch)
-                label = batch.y
-                loss = model.loss(pred, label)
-                loss.backward()
-                optimizer.step()
-                total_loss += loss.item() * batch.num_graphs
-            total_loss /= len(train_loader.dataset)
-            writer.add_scalar("loss", total_loss, epoch)
-            train_loss.append(total_loss)
-
-            if epoch % 1 == 0:
-                val_acc, val_f1, val_rec, val_prec = test(val_loader, model)
-                #allows to save the best model based on validation accuracy
-                if val_acc >= best_val_acc: 
-                    best_val_acc = val_acc
-                    best_model_wts = copy.deepcopy(model.state_dict())
-                val_acc_list.append(val_acc)
-                val_f1_list.append(val_f1)
-                val_rec_list.append(val_rec)
-                val_prec_list.append(val_prec)
-                print('\n\n')
-                print("Epoch {}. Loss: {:.4f}. Val accuracy: {:.4f}".format(
-                    epoch, total_loss, val_acc))
-                writer.add_scalar("Val accuracy", val_acc, epoch)
-                writer.add_scalar("Val f1", val_f1, epoch)
-                writer.add_scalar("Val recall", val_rec, epoch)
-                writer.add_scalar("Val precision", val_prec, epoch)
-    last_model = model.state_dict()
-
-    return last_model, best_model_wts, train_loss, val_acc_list, val_f1_list, val_rec_list, val_prec_list
-
-
-def test(loader, model, is_validation=False):
-    model.eval()
-
-    correct = 0
-    y_true = []
-    y_pred = []
-    for data in loader:
-        with torch.no_grad():
-            _, pred = model(data)
-            pred = pred.argmax(dim=1)
-            label = data.y
-
-        # if model.task == 'node':
-        #     mask = data.val_mask if is_validation else data.test_mask
-        #     # node classification: only evaluate on nodes in test set
-        #     pred = pred[mask]
-        #     label = data.y[mask]
-            
-        correct += pred.eq(label).sum().item()
-        y_true.extend(label.tolist())
-        y_pred.extend(pred.tolist())
-    
-    if model.task == 'graph':
-        total = len(loader.dataset) 
-    else:
-        total = 0
-        for data in loader.dataset:
-            total += torch.sum(data.test_mask).item()
-    
-    accuracy = correct / total
-    f1 = f1_score(y_true, y_pred, average='macro')
-    recall = recall_score(y_true, y_pred, average='macro')
-    precision = precision_score(y_true, y_pred, average='macro')
-    
-    return accuracy, f1, recall, precision
+from train_test_loops import train_model, test
 
 
 if __name__ == "__main__":
     #set random torch seed
-    torch.manual_seed(2023)
+    torch.manual_seed(48)
     #set numpy random seed
-    np.random.seed(2023)
+    np.random.seed(48)
     #set random python seed
-    random.seed(2023)
+    random.seed(48)
+
+    #give a name to the run through the user input
+    while True:
+        run_name = input("Insert run name: ")
+        #check run_name not being ''
+        if run_name == '':
+            print("Run name cannot be empty, please insert a valid name")
+            continue
+        #check if the run name already exists, if so ask for another name
+        if not os.path.exists(f'/home/erikfer/GNN_project/code_base/PLOTS/{run_name}'):
+            break
+        else:
+            print("Run name already exists, please insert another name")
 
     VERBOSE = True
     ROOT = '/home/erikfer/GNN_project/DATA/SPLITTED_ARTERIES_Normalized/'
-    SAVE_PLOTS_FOLDER= '/home/erikfer/GNN_project/PLOTS/run_12_12_seed2023/'
+    SAVE_PLOTS_FOLDER= f'/home/erikfer/GNN_project/code_base/RUNS/{run_name}/'
     #check if save plots folder exists, otherwise create it
     if not os.path.exists(SAVE_PLOTS_FOLDER):
         os.makedirs(SAVE_PLOTS_FOLDER)
@@ -137,8 +63,8 @@ if __name__ == "__main__":
     # Set up the dataset
     dataset = ArteryGraphDataset(root=ROOT, ann_file='graphs_annotation.json', node_atts=NODE_ATTS, edge_atts=EDGE_ATTS, augment=0.9)
     #get the model
-    MODEL = GATcustom(dataset.num_node_features, 32, 2, 3, dropout=0.25) #its the GAT network
-    #MODEL = GNNStack(dataset.num_node_features, 32, dataset.num_classes,  task='graph') #its the GIN network
+    #MODEL = GATcustom(dataset.num_node_features, 32, 2, 3, dropout=0.25) #its the GAT network
+    MODEL = GNNStack(dataset.num_node_features, 32, dataset.num_classes,  task='graph') #its the GIN network
 
     #print length of the node features of the dataset
     if VERBOSE:
@@ -203,8 +129,8 @@ if __name__ == "__main__":
 
     # # """Eventually use a scheduler for the learning rate, but actually is not needed because the learning rate is already small enough"""
     # # #scheduler = optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lambda epoch: (1 - warmup_factor) * epoch / warmup_epochs if epoch < warmup_epochs else warmup_factor ** (epoch - warmup_epochs))
-    
-    writer = SummaryWriter()
+    #Tensorboard summary writer
+    writer = SummaryWriter(log_dir=os.path.join(SAVE_PLOTS_FOLDER, 'tensorboard_logs'))
 
     if VERBOSE:
         print("\nStarting training...")
@@ -217,8 +143,13 @@ if __name__ == "__main__":
 
         
     #save model as artery_model.pt
-    torch.save(best_model, 'artery_model_best_val_acc.pt')
-    torch.save(last_model, 'artery_model_last.pt')
+    try:
+        torch.save(best_model, f'trained_models/{run_name}_best_val_acc.pt')
+        torch.save(last_model, f'trained_models/{run_name}_last.pt')
+    except:
+        os.makedirs('trained_models')
+        torch.save(best_model, f'trained_models/{run_name}_best_val_acc.pt')
+        torch.save(last_model, f'trained_models/{run_name}_last.pt')
 
     #keep writing the output of the print function to the output.txt file
 
@@ -226,7 +157,7 @@ if __name__ == "__main__":
     test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False)
     model = MODEL #it would be better to initialize the model instead of overwriting the trained one but the result is the same
     #load best model
-    best_model = torch.load('artery_model_best_val_acc.pt')
+    best_model = torch.load(f'trained_models/{run_name}_best_val_acc.pt')
     model.load_state_dict(best_model)
     model.eval()
 
@@ -359,8 +290,8 @@ if __name__ == "__main__":
         accuracy = correct / total
         acc_hist.append(accuracy)
         #if the accuracy is equal to not_aug_test_acc in the two last iterations, then stop the loop
-        if j > 20:
-            if acc_hist[-1] == acc_hist[-2] == not_aug_test_acc:
+        if j > 30:
+            if acc_hist[-1] == acc_hist[-2] == acc_hist[-3] == not_aug_test_acc:
                 break
 
     #print(f"\nAccuracy on test set with random graph portions selected: {acc_hist}")
