@@ -3,13 +3,9 @@ import torch.nn as nn
 import torch.optim as optim
 from torch_geometric.data import DataLoader
 from data.dataset import ArteryGraphDataset
-import torch_geometric.nn as pyg_nn
-import torch.nn.functional as F
 from tensorboardX import SummaryWriter
-from torch_geometric.nn import GCNConv
-from torch_geometric.nn import GAE
 import os
-from Utilities.custom_functions import generate_graph_activation_map, from_networkx, compute_inference_time
+from utils.custom_functions import generate_graph_activation_map, from_networkx, compute_inference_time
 import numpy as np
 from models.GIN import *
 from models.GAT import *
@@ -17,12 +13,10 @@ import random
 from sklearn.metrics import f1_score, recall_score, precision_score
 from sklearn.metrics import roc_curve, auc
 import matplotlib.pyplot as plt
-import copy
-import hcatnetwork
-from Utilities.augmentations import random_graph_portion_selection, trim_graph_random_branch, add_graph_random_branch
+from utils.augmentations import random_graph_portion_selection, trim_graph_random_branch, add_graph_random_branch
 import sys
 from time import sleep
-from train_test_loops import train_model, test
+from train_test_loops import train_model
 
 
 if __name__ == "__main__":
@@ -41,14 +35,14 @@ if __name__ == "__main__":
             print("Run name cannot be empty, please insert a valid name")
             continue
         #check if the run name already exists, if so ask for another name
-        if not os.path.exists(f'/home/erikfer/GNN_project/code_base/PLOTS/{run_name}'):
+        if not os.path.exists(f'/home/erikfer/GNN_project/coronary_arteries_classification/PLOTS/{run_name}'):
             break
         else:
             print("Run name already exists, please insert another name")
 
     VERBOSE = True
     ROOT = '/home/erikfer/GNN_project/DATA/SPLITTED_ARTERIES_Normalized/'
-    SAVE_PLOTS_FOLDER= f'/home/erikfer/GNN_project/code_base/RUNS/{run_name}/'
+    SAVE_PLOTS_FOLDER= f'/home/erikfer/GNN_project/coronary_arteries_classification/RUNS/{run_name}/'
     #check if save plots folder exists, otherwise create it
     if not os.path.exists(SAVE_PLOTS_FOLDER):
         os.makedirs(SAVE_PLOTS_FOLDER)

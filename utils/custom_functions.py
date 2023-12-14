@@ -3,31 +3,22 @@ import networkx
 from hcatnetwork.graph import SimpleCenterlineGraph
 import hcatnetwork
 from collections import defaultdict
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Union
 import json
 import numpy as np
-import random
-from mpl_toolkits.mplot3d import Axes3D
 from scipy.interpolate import splprep, splev
 
-import scipy.sparse
 import torch
 from torch import Tensor
-from torch.utils.dlpack import from_dlpack, to_dlpack
 import os
-import torch_geometric
-from torch_geometric.utils.num_nodes import maybe_num_nodes
-from hcatnetwork.node import ArteryNodeTopology, ArteryNodeSide
+from hcatnetwork.node import ArteryNodeTopology
 from torch_geometric.data import Data
 from hcatnetwork.draw.styles import *
 import numpy
 import matplotlib.pyplot as plt
-from matplotlib.lines import Line2D
-from hcatnetwork.draw.draw import SimpleCenterlineGraphInteractiveDrawer
 
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.interpolate import CubicSpline
 import warnings
 import time
 import itertools

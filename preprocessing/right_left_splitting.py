@@ -1,15 +1,12 @@
 import os
-import matplotlib 
-import matplotlib.pyplot as plt
 import json
 from warnings import warn
-import networkx as nx
 
 import hcatnetwork
 from HearticDatasetManager.asoca.dataset import DATASET_ASOCA_GRAPHS_RESAMPLED_05MM_DICT
 from HearticDatasetManager.cat08.dataset import DATASET_CAT08_GRAPHS_RESAMPLED_05MM
 
-from Utilities.custom_functions import get_subgraph_from_nbunch, make_ostia_origin_and_normalize
+from utils.custom_functions import get_subgraph_from_nbunch, make_ostia_origin_and_normalize
 
 ASOCA_PATH = '/home/erikfer/GNN_project/DATA/ASOCA/'
 CAT08_PATH = '/home/erikfer/GNN_project/DATA/CAT08/'

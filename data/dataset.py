@@ -3,11 +3,11 @@ import json
 import torch
 import networkx as nx
 import warnings
-from torch_geometric.data import Dataset, Data
-from Utilities.custom_functions import from_networkx
+from torch_geometric.data import Dataset
+from utils.custom_functions import from_networkx
 import unittest
 import random
-from Utilities.augmentations import apply_augmentation_to_graph
+from utils.augmentations import apply_augmentation_to_graph
 import hcatnetwork
 
 class ArteryGraphDataset(Dataset): #it is not an InMemoryDataset because it is not possible to load all the graphs in memory

@@ -1,0 +1,9 @@
+hcatnetwork>=2023.11.14.post0
+cython
+numpy
+scipy
+matplotlib
+PyQt6
+palettable
+NetworkX
+PyVis

@@ -5,12 +5,11 @@ import json
 import hcatnetwork
 import random
 import warnings
-from Utilities.custom_functions import get_subgraph_from_nbunch, find_connected_nodes, generate_fake_vessel, generate_points_on_sphere
+from utils.custom_functions import get_subgraph_from_nbunch, find_connected_nodes, generate_fake_vessel, generate_points_on_sphere
 from hcatnetwork.node import ArteryNodeTopology
 from HearticDatasetManager.affine import get_affine_3d_rotation_around_vector
 from HearticDatasetManager.affine import apply_affine_3d
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
-import matplotlib.pyplot as plt
+from typing import Any, Dict, List, Union
 
 def apply_augmentation_to_graph(graph: nx.Graph, augmentation: list[str], prob=0.5, n_changes=1,**kwargs):
     """Applies the specified augmentation to the given graph and returns the augmented graph.

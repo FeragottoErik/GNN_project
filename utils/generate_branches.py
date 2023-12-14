@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch_geometric.data import Data
 from torch_geometric.nn import GCNConv
 
 """Hint on how to use a Variational Autoencoder (VAE) with PyTorch Geometric (PyG) to reconstruct a graph. 

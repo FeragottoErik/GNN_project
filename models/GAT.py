@@ -2,12 +2,12 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch_geometric.nn import GAT
-from torch_geometric.nn import GAE
 from torch_geometric.nn.models.basic_gnn import GAT
 from typing import Optional, List
 from torch import Tensor, Union, Callable, Dict, Any
 #import OptTensor
 from torch_geometric.typing import OptTensor
+import torch_geometric.nn as pyg_nn
 
 
 
