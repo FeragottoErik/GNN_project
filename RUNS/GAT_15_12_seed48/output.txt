@@ -1,0 +1,101 @@
+Number of node features: 7
+Number of classes: 2
+Creating subsets...
+Total number of parameters: 5922, for model: GATcustom
+Dataset length: 96
+Train dataset length: 76
+Test dataset length: 9
+Test dataset length: 20
+
+Starting training...
+
+
+
+Epoch 0. Loss: 0.6951. Val accuracy: 0.4444
+
+
+
+Epoch 1. Loss: 0.6888. Val accuracy: 0.4444
+
+
+
+Epoch 2. Loss: 0.6757. Val accuracy: 0.4444
+
+
+
+Epoch 3. Loss: 0.6789. Val accuracy: 0.4444
+
+
+
+Epoch 4. Loss: 0.6766. Val accuracy: 0.4444
+
+
+
+Epoch 5. Loss: 0.6518. Val accuracy: 0.4444
+
+
+
+Epoch 6. Loss: 0.6233. Val accuracy: 0.5556
+
+
+
+Epoch 7. Loss: 0.6689. Val accuracy: 0.5556
+
+
+
+Epoch 8. Loss: 0.5894. Val accuracy: 0.6667
+
+
+
+Epoch 9. Loss: 0.6212. Val accuracy: 0.7778
+
+
+
+Epoch 10. Loss: 0.5661. Val accuracy: 0.6667
+
+
+
+Epoch 11. Loss: 0.6114. Val accuracy: 1.0000
+
+
+
+Epoch 12. Loss: 0.4791. Val accuracy: 0.6667
+
+
+
+Epoch 13. Loss: 0.4727. Val accuracy: 1.0000
+
+
+
+Epoch 14. Loss: 0.3952. Val accuracy: 1.0000
+
+
+
+Epoch 15. Loss: 0.3797. Val accuracy: 0.6667
+
+
+
+Epoch 16. Loss: 0.4890. Val accuracy: 1.0000
+
+
+
+Epoch 17. Loss: 0.3923. Val accuracy: 1.0000
+
+
+
+Epoch 18. Loss: 0.4036. Val accuracy: 0.5556
+
+
+
+Epoch 19. Loss: 0.4175. Val accuracy: 0.8889
+
+Average Inference time: 0.003109743595123291 +- 0.00020558466116428044 seconds
+
+Accuracy on test set: 1.0
+F1 score on test set: 1.0
+Recall on test set: 1.0
+Precision on test set: 1.0
+
+Accuracy on test set with random branches trimmed: 0.9
+
+Accuracy on test set with random branches added: 1.0

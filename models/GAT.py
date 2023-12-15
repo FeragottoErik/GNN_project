@@ -131,11 +131,13 @@ class GATcustom(GAT):
                 x = self.dropout(x)
                 if hasattr(self, 'jk'):
                     xs.append(x)
+        #print the backward function of x
 
         x = self.jk(xs) if hasattr(self, 'jk') else x
         x = self.lin(x) if hasattr(self, 'lin') else x
 
         x = pyg_nn.global_mean_pool(x, batch)
+
         emb = x
         x = self.post_mp(x)
         #compute the logits instead of the probabilities
@@ -215,3 +217,7 @@ class GATcustom(GAT):
         
     def loss(self, pred, label):
         return F.nll_loss(pred, label)
+    
+
+#TODO: define a custom GNN that uses first some attention layers followed by GINconv and finally FClayers, so as to leverage both
+#the attention mechanism and the aggregation of the GINconv

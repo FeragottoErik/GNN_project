@@ -57,8 +57,8 @@ if __name__ == "__main__":
     # Set up the dataset
     dataset = ArteryGraphDataset(root=ROOT, ann_file='graphs_annotation.json', node_atts=NODE_ATTS, edge_atts=EDGE_ATTS, augment=0.9)
     #get the model
-    #MODEL = GATcustom(dataset.num_node_features, 32, 2, 3, dropout=0.25) #its the GAT network
-    MODEL = GNNStack(dataset.num_node_features, 32, dataset.num_classes,  task='graph') #its the GIN network
+    MODEL = GATcustom(dataset.num_node_features, 32, 2, 5, dropout=0.25) #its the GAT network
+    #MODEL = GNNStack(dataset.num_node_features, 32, dataset.num_classes,  task='graph') #its the GIN network
 
     #print length of the node features of the dataset
     if VERBOSE:
@@ -116,13 +116,13 @@ if __name__ == "__main__":
     model = MODEL
     # Define the loss function and optimizer
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=0.0001)
+    optimizer = optim.Adam(model.parameters(), lr=0.001) #0.001 for GAT, 0.0001 for GIN
     warmup_factor = 0.1
     warmup_epochs = 5
     total_epochs = 20
 
     # # """Eventually use a scheduler for the learning rate, but actually is not needed because the learning rate is already small enough"""
-    # # #scheduler = optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lambda epoch: (1 - warmup_factor) * epoch / warmup_epochs if epoch < warmup_epochs else warmup_factor ** (epoch - warmup_epochs))
+    ##scheduler = optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lambda epoch: (1 - warmup_factor) * epoch / warmup_epochs if epoch < warmup_epochs else warmup_factor ** (epoch - warmup_epochs))
     #Tensorboard summary writer
     writer = SummaryWriter(log_dir=os.path.join(SAVE_PLOTS_FOLDER, 'tensorboard_logs'))
 

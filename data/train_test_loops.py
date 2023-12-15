@@ -8,6 +8,8 @@ import copy
 
 
 def train_model(model, train_dataset, val_dataset, optimizer, writer=SummaryWriter(), batch_size=4, num_epochs=10):
+    #create a list that contain all the parameters of the model
+    model_params = copy.deepcopy([p for p in model.parameters() if p.requires_grad])
     #TODO: implement early stopping
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=1, shuffle=False)
@@ -53,6 +55,17 @@ def train_model(model, train_dataset, val_dataset, optimizer, writer=SummaryWrit
                 writer.add_scalar("Val f1", val_f1, epoch)
                 writer.add_scalar("Val recall", val_rec, epoch)
                 writer.add_scalar("Val precision", val_prec, epoch)
+            last_model_params = copy.deepcopy([p for p in model.parameters() if p.requires_grad])
+            #check if any of the parameters of the model changed
+            for i in range(len(model_params)):
+                if torch.equal(model_params[i].data, last_model_params[i].data):
+                    print('Parameters of the model did not change')
+                    break
+            #log the parameters on tensorboard
+            for i, param in enumerate(model_params):
+                writer.add_histogram("model_params/{}".format(i), param, epoch)
+            model_params = last_model_params
+
     last_model = model.state_dict()
 
     return last_model, best_model_wts, train_loss, val_acc_list, val_f1_list, val_rec_list, val_prec_list

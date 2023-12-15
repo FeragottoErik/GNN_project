@@ -1,0 +1,62 @@
+/home/erikfer/anaconda3/envs/coronary/lib/python3.11/site-packages/torch_geometric/deprecation.py:22: UserWarning: 'data.DataLoader' is deprecated, use 'loader.DataLoader' instead
+  warnings.warn(out)
+/home/erikfer/anaconda3/envs/coronary/lib/python3.11/site-packages/sklearn/metrics/_classification.py:1471: UndefinedMetricWarning: Precision is ill-defined and being set to 0.0 in labels with no predicted samples. Use `zero_division` parameter to control this behavior.
+  _warn_prf(average, modifier, msg_start, len(result))
+/home/erikfer/anaconda3/envs/coronary/lib/python3.11/site-packages/sklearn/metrics/_classification.py:1471: UndefinedMetricWarning: Precision is ill-defined and being set to 0.0 in labels with no predicted samples. Use `zero_division` parameter to control this behavior.
+  _warn_prf(average, modifier, msg_start, len(result))
+/home/erikfer/anaconda3/envs/coronary/lib/python3.11/site-packages/sklearn/metrics/_classification.py:1471: UndefinedMetricWarning: Precision is ill-defined and being set to 0.0 in labels with no predicted samples. Use `zero_division` parameter to control this behavior.
+  _warn_prf(average, modifier, msg_start, len(result))
+/home/erikfer/anaconda3/envs/coronary/lib/python3.11/site-packages/sklearn/metrics/_classification.py:1471: UndefinedMetricWarning: Precision is ill-defined and being set to 0.0 in labels with no predicted samples. Use `zero_division` parameter to control this behavior.
+  _warn_prf(average, modifier, msg_start, len(result))
+/home/erikfer/anaconda3/envs/coronary/lib/python3.11/site-packages/sklearn/metrics/_classification.py:1471: UndefinedMetricWarning: Precision is ill-defined and being set to 0.0 in labels with no predicted samples. Use `zero_division` parameter to control this behavior.
+  _warn_prf(average, modifier, msg_start, len(result))
+/home/erikfer/anaconda3/envs/coronary/lib/python3.11/site-packages/sklearn/metrics/_classification.py:1471: UndefinedMetricWarning: Precision is ill-defined and being set to 0.0 in labels with no predicted samples. Use `zero_division` parameter to control this behavior.
+  _warn_prf(average, modifier, msg_start, len(result))
+/home/erikfer/anaconda3/envs/coronary/lib/python3.11/site-packages/sklearn/metrics/_classification.py:1471: UndefinedMetricWarning: Precision is ill-defined and being set to 0.0 in labels with no predicted samples. Use `zero_division` parameter to control this behavior.
+  _warn_prf(average, modifier, msg_start, len(result))
+/home/erikfer/anaconda3/envs/coronary/lib/python3.11/site-packages/sklearn/metrics/_classification.py:1471: UndefinedMetricWarning: Precision is ill-defined and being set to 0.0 in labels with no predicted samples. Use `zero_division` parameter to control this behavior.
+  _warn_prf(average, modifier, msg_start, len(result))
+/home/erikfer/anaconda3/envs/coronary/lib/python3.11/site-packages/torch_geometric/deprecation.py:22: UserWarning: 'data.DataLoader' is deprecated, use 'loader.DataLoader' instead
+  warnings.warn(out)
+/home/erikfer/GNN_project/coronary_arteries_classification/utils/augmentations.py:476: UserWarning: The graph has no nodes with degree greater than 2
+  warnings.warn("The graph has no nodes with degree greater than 2")
+/home/erikfer/GNN_project/coronary_arteries_classification/utils/augmentations.py:368: UserWarning: The neigh_dist parameter should be an integer between 50 and 271
+  warnings.warn(f"The neigh_dist parameter should be an integer between {MIN_NEIGH_DIST} and {MAX_NEIGH_DIST}")
+/home/erikfer/GNN_project/coronary_arteries_classification/utils/augmentations.py:368: UserWarning: The neigh_dist parameter should be an integer between 50 and 167
+  warnings.warn(f"The neigh_dist parameter should be an integer between {MIN_NEIGH_DIST} and {MAX_NEIGH_DIST}")
+/home/erikfer/GNN_project/coronary_arteries_classification/utils/augmentations.py:368: UserWarning: The neigh_dist parameter should be an integer between 50 and 350
+  warnings.warn(f"The neigh_dist parameter should be an integer between {MIN_NEIGH_DIST} and {MAX_NEIGH_DIST}")
+/home/erikfer/GNN_project/coronary_arteries_classification/utils/augmentations.py:368: UserWarning: The neigh_dist parameter should be an integer between 50 and 281
+  warnings.warn(f"The neigh_dist parameter should be an integer between {MIN_NEIGH_DIST} and {MAX_NEIGH_DIST}")
+/home/erikfer/GNN_project/coronary_arteries_classification/utils/augmentations.py:368: UserWarning: The neigh_dist parameter should be an integer between 50 and 347
+  warnings.warn(f"The neigh_dist parameter should be an integer between {MIN_NEIGH_DIST} and {MAX_NEIGH_DIST}")
+/home/erikfer/GNN_project/coronary_arteries_classification/utils/augmentations.py:368: UserWarning: The neigh_dist parameter should be an integer between 50 and 275
+  warnings.warn(f"The neigh_dist parameter should be an integer between {MIN_NEIGH_DIST} and {MAX_NEIGH_DIST}")
+/home/erikfer/GNN_project/coronary_arteries_classification/utils/augmentations.py:368: UserWarning: The neigh_dist parameter should be an integer between 50 and 367
+  warnings.warn(f"The neigh_dist parameter should be an integer between {MIN_NEIGH_DIST} and {MAX_NEIGH_DIST}")
+/home/erikfer/GNN_project/coronary_arteries_classification/utils/augmentations.py:368: UserWarning: The neigh_dist parameter should be an integer between 50 and 255
+  warnings.warn(f"The neigh_dist parameter should be an integer between {MIN_NEIGH_DIST} and {MAX_NEIGH_DIST}")
+/home/erikfer/GNN_project/coronary_arteries_classification/utils/augmentations.py:368: UserWarning: The neigh_dist parameter should be an integer between 50 and 325
+  warnings.warn(f"The neigh_dist parameter should be an integer between {MIN_NEIGH_DIST} and {MAX_NEIGH_DIST}")
+/home/erikfer/GNN_project/coronary_arteries_classification/utils/augmentations.py:368: UserWarning: The neigh_dist parameter should be an integer between 50 and 341
+  warnings.warn(f"The neigh_dist parameter should be an integer between {MIN_NEIGH_DIST} and {MAX_NEIGH_DIST}")
+/home/erikfer/GNN_project/coronary_arteries_classification/utils/augmentations.py:368: UserWarning: The neigh_dist parameter should be an integer between 50 and 394
+  warnings.warn(f"The neigh_dist parameter should be an integer between {MIN_NEIGH_DIST} and {MAX_NEIGH_DIST}")
+/home/erikfer/GNN_project/coronary_arteries_classification/utils/augmentations.py:368: UserWarning: The neigh_dist parameter should be an integer between 50 and 407
+  warnings.warn(f"The neigh_dist parameter should be an integer between {MIN_NEIGH_DIST} and {MAX_NEIGH_DIST}")
+/home/erikfer/GNN_project/coronary_arteries_classification/utils/augmentations.py:368: UserWarning: The neigh_dist parameter should be an integer between 50 and 299
+  warnings.warn(f"The neigh_dist parameter should be an integer between {MIN_NEIGH_DIST} and {MAX_NEIGH_DIST}")
+/home/erikfer/GNN_project/coronary_arteries_classification/utils/augmentations.py:368: UserWarning: The neigh_dist parameter should be an integer between 50 and 374
+  warnings.warn(f"The neigh_dist parameter should be an integer between {MIN_NEIGH_DIST} and {MAX_NEIGH_DIST}")
+/home/erikfer/GNN_project/coronary_arteries_classification/utils/augmentations.py:368: UserWarning: The neigh_dist parameter should be an integer between 50 and 272
+  warnings.warn(f"The neigh_dist parameter should be an integer between {MIN_NEIGH_DIST} and {MAX_NEIGH_DIST}")
+/home/erikfer/GNN_project/coronary_arteries_classification/utils/augmentations.py:368: UserWarning: The neigh_dist parameter should be an integer between 50 and 268
+  warnings.warn(f"The neigh_dist parameter should be an integer between {MIN_NEIGH_DIST} and {MAX_NEIGH_DIST}")
+/home/erikfer/GNN_project/coronary_arteries_classification/utils/augmentations.py:368: UserWarning: The neigh_dist parameter should be an integer between 50 and 297
+  warnings.warn(f"The neigh_dist parameter should be an integer between {MIN_NEIGH_DIST} and {MAX_NEIGH_DIST}")
+/home/erikfer/GNN_project/coronary_arteries_classification/utils/augmentations.py:368: UserWarning: The neigh_dist parameter should be an integer between 50 and 403
+  warnings.warn(f"The neigh_dist parameter should be an integer between {MIN_NEIGH_DIST} and {MAX_NEIGH_DIST}")
+/home/erikfer/GNN_project/coronary_arteries_classification/utils/augmentations.py:368: UserWarning: The neigh_dist parameter should be an integer between 50 and 322
+  warnings.warn(f"The neigh_dist parameter should be an integer between {MIN_NEIGH_DIST} and {MAX_NEIGH_DIST}")
+/home/erikfer/GNN_project/coronary_arteries_classification/utils/augmentations.py:368: UserWarning: The neigh_dist parameter should be an integer between 50 and 399
+  warnings.warn(f"The neigh_dist parameter should be an integer between {MIN_NEIGH_DIST} and {MAX_NEIGH_DIST}")
