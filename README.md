@@ -31,12 +31,3 @@ Given a dataset composed by graph extracted from centerlines of coronary arterie
     ```bash
     pip install -r requirements.txt
     ```
-
-## Usage
-
-First of all create the processed dataset with splitted RCA-LCA and JSON file by means of preprocessing/right_left_splitting.py
-Run main.py once, it will automatically process the data to create a new 'processed' folder in which .pt files are saved for each graph.
-It will then throw an error due to misimplementation of dataset.py
-create 'ref_data_list.txt' in 'processed' parent folder containing a list of all elements included in 'processed' folder
-Run again the main.py to train test and evaluate the model.
-
